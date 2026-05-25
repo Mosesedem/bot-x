@@ -54,9 +54,17 @@ lint:
 build:
 	@for svc in xgateway giveaway entry payment-router kyc compliance audit notification reconciliation admin; do \
 		echo "Building $$svc..."; \
-		go build -o bin/$$svc ./services/$$svc/cmd/main.go 2>/dev1/null || \
+		go build -o bin/$$svc ./services/$$svc/cmd/main.go 2>/dev/null || \
 		go build -o bin/$$svc ./services/$$svc/cmd/; \
 	done
+
+heroku-deploy:
+	@if [ -z "$(app)" ] || [ -z "$(service)" ]; then \
+		echo "Usage: make heroku-deploy app=<heroku-app> service=<service-name>"; \
+		exit 1; \
+	fi
+	heroku container:push web -a $(app) -f services/$(service)/Dockerfile .
+	heroku container:release web -a $(app)
 
 # ── Clean ─────────────────────────────────────────────────
 clean:
