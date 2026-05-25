@@ -1,5 +1,6 @@
 package statemachine
-package statemachine
+
+// package statemachine
 
 import "testing"
 

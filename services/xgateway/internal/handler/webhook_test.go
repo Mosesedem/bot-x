@@ -1,14 +1,13 @@
 package handler
-package handler
 
 import (
-    "net/http"
-    "net/http/httptest"
-    "testing"
+	"net/http"
+	"net/http/httptest"
+	"testing"
 
-    "github.com/hibiken/asynq"
-    "github.com/mosesedem/bot-x/shared/config"
-    "go.uber.org/zap"
+	"github.com/hibiken/asynq"
+	"github.com/mosesedem/bot-x/shared/config"
+	"go.uber.org/zap"
 )
 
 func TestHandleCRC(t *testing.T) {
