@@ -1,0 +1,67 @@
+syntax = "proto3";
+package giveaway.v1;
+option go_package = "github.com/instantf/bot-x/gen/go/giveawayv1";
+
+import "google/protobuf/timestamp.proto";
+
+service GiveawayService {
+    rpc CreateGiveaway(CreateGiveawayRequest) returns (Giveaway);
+    rpc ActivateGiveaway(GiveawayIDRequest) returns (Giveaway);
+    rpc LockGiveaway(GiveawayIDRequest) returns (Giveaway);
+    rpc DrawWinners(GiveawayIDRequest) returns (DrawWinnersResponse);
+    rpc GetGiveaway(GiveawayIDRequest) returns (Giveaway);
+    rpc UpdateGiveawayStatus(UpdateStatusRequest) returns (Giveaway);
+    rpc CancelGiveaway(CancelRequest) returns (Giveaway);
+}
+
+message GiveawayIDRequest {
+    string id = 1;
+}
+
+message CreateGiveawayRequest {
+    string host_twitter_id = 1;
+    string source_tweet_id = 2;
+    string command_tweet_id = 3;
+    double total_budget = 4;
+    string currency = 5;
+    int32 winner_count = 6;
+    double amount_per_winner = 7;
+    string entry_rule = 8;
+    string jurisdiction = 9;
+}
+
+message Giveaway {
+    string id = 1;
+    string host_twitter_id = 2;
+    string source_tweet_id = 3;
+    string status = 4;
+    double total_budget = 5;
+    string currency = 6;
+    int32 winner_count = 7;
+    double amount_per_winner = 8;
+    string entry_rule = 9;
+    string jurisdiction = 10;
+    string escrow_reference = 11;
+    string escrow_gateway = 12;
+    string funding_account = 13;
+    string funding_bank_code = 14;
+    google.protobuf.Timestamp created_at = 15;
+    google.protobuf.Timestamp deadline_at = 16;
+}
+
+message UpdateStatusRequest {
+    string id = 1;
+    string status = 2;
+    string reason = 3;
+}
+
+message CancelRequest {
+    string id = 1;
+    string reason = 2;
+}
+
+message DrawWinnersResponse {
+    string giveaway_id = 1;
+    repeated string winner_twitter_ids = 2;
+    int32 winner_count = 3;
+}

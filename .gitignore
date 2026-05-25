@@ -1,0 +1,12 @@
+.env
+bin/
+*.test
+coverage.out
+vendor/
+gen/go/
+*.pem
+*.key
+*.p8
+.DS_Store
+*.log
+tmp/

@@ -1,0 +1,51 @@
+syntax = "proto3";
+package audit.v1;
+option go_package = "github.com/instantf/bot-x/gen/go/auditv1";
+
+import "google/protobuf/timestamp.proto";
+
+service AuditService {
+    rpc LogEvent(LogEventRequest) returns (LogEventResponse);
+    rpc QueryEvents(QueryEventsRequest) returns (QueryEventsResponse);
+}
+
+message LogEventRequest {
+    string entity_type = 1;
+    string entity_id = 2;
+    string action = 3;
+    string actor_id = 4;
+    string gateway = 5;
+    string payload = 6;  // JSON string
+    string ip_address = 7;
+}
+
+message LogEventResponse {
+    string event_id = 1;
+}
+
+message QueryEventsRequest {
+    string entity_type = 1;
+    string entity_id = 2;
+    string action = 3;
+    string gateway = 4;
+    google.protobuf.Timestamp from = 5;
+    google.protobuf.Timestamp to = 6;
+    int32 limit = 7;
+    int32 offset = 8;
+}
+
+message AuditEvent {
+    string event_id = 1;
+    string entity_type = 2;
+    string entity_id = 3;
+    string action = 4;
+    string actor_id = 5;
+    string gateway = 6;
+    string payload = 7;
+    google.protobuf.Timestamp created_at = 8;
+}
+
+message QueryEventsResponse {
+    repeated AuditEvent events = 1;
+    int32 total = 2;
+}

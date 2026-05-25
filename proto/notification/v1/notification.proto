@@ -1,0 +1,80 @@
+syntax = "proto3";
+package notification.v1;
+option go_package = "github.com/instantf/bot-x/gen/go/notificationv1";
+
+service NotificationService {
+    rpc SendGiveawayConfirmationDM(GiveawayConfirmationDMRequest) returns (NotificationResponse);
+    rpc SendActivationReply(ActivationReplyRequest) returns (NotificationResponse);
+    rpc SendWinnerDM(WinnerDMRequest) returns (NotificationResponse);
+    rpc SendPayoutSuccessDM(PayoutSuccessDMRequest) returns (NotificationResponse);
+    rpc SendPayoutFailedDM(PayoutFailedDMRequest) returns (NotificationResponse);
+    rpc SendHostCompletionDM(HostCompletionDMRequest) returns (NotificationResponse);
+    rpc SendKYCRequestDM(KYCRequestDMRequest) returns (NotificationResponse);
+}
+
+message NotificationResponse {
+    bool sent = 1;
+    string message_id = 2;
+}
+
+message GiveawayConfirmationDMRequest {
+    string host_twitter_id = 1;
+    string giveaway_id = 2;
+    int32 winner_count = 3;
+    double amount_per_winner = 4;
+    string currency = 5;
+    string entry_rule = 6;
+    string virtual_account_number = 7;
+    string bank_name = 8;
+    string account_name = 9;
+    double total_to_fund = 10;  // budget + platform fee
+}
+
+message ActivationReplyRequest {
+    string tweet_id = 1;
+    string giveaway_id = 2;
+    int32 winner_count = 3;
+    double amount_per_winner = 4;
+    string currency = 5;
+    string deadline_description = 6;
+}
+
+message WinnerDMRequest {
+    string winner_twitter_id = 1;
+    string giveaway_id = 2;
+    double amount = 3;
+    string currency = 4;
+    string host_handle = 5;
+}
+
+message PayoutSuccessDMRequest {
+    string winner_twitter_id = 1;
+    double amount = 2;
+    string currency = 3;
+    string bank_last4 = 4;
+    string bank_name = 5;
+}
+
+message PayoutFailedDMRequest {
+    string winner_twitter_id = 1;
+    double amount = 2;
+    string currency = 3;
+    string reason = 4;
+}
+
+message HostCompletionDMRequest {
+    string host_twitter_id = 1;
+    string giveaway_id = 2;
+    int32 total_winners = 3;
+    int32 paid_count = 4;
+    int32 failed_count = 5;
+    double total_disbursed = 6;
+    string currency = 7;
+}
+
+message KYCRequestDMRequest {
+    string winner_twitter_id = 1;
+    string kyc_link = 2;
+    double amount = 3;
+    string currency = 4;
+}

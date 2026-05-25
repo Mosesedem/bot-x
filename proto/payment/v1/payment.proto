@@ -1,0 +1,87 @@
+syntax = "proto3";
+package payment.v1;
+option go_package = "github.com/instantf/bot-x/gen/go/paymentv1";
+
+service PaymentRouterService {
+    rpc InitiateEscrow(InitiateEscrowRequest) returns (InitiateEscrowResponse);
+    rpc CheckEscrowFunded(CheckEscrowFundedRequest) returns (CheckEscrowFundedResponse);
+    rpc RefundEscrow(RefundEscrowRequest) returns (RefundEscrowResponse);
+    rpc RoutePayment(RoutePaymentRequest) returns (RoutePaymentResponse);
+    rpc RetryPayout(RetryPayoutRequest) returns (RoutePaymentResponse);
+    rpc GetGatewayHealth(GetGatewayHealthRequest) returns (GetGatewayHealthResponse);
+}
+
+message InitiateEscrowRequest {
+    string giveaway_id = 1;
+    double amount = 2;
+    string currency = 3;
+    string jurisdiction = 4;
+    string host_twitter_id = 5;
+}
+
+message InitiateEscrowResponse {
+    string virtual_account_number = 1;
+    string bank_name = 2;
+    string bank_code = 3;
+    string account_name = 4;
+    string gateway = 5;
+    string reference = 6;
+}
+
+message CheckEscrowFundedRequest {
+    string giveaway_id = 1;
+}
+
+message CheckEscrowFundedResponse {
+    bool funded = 1;
+    double amount_received = 2;
+    string gateway = 3;
+    string reference = 4;
+}
+
+message RefundEscrowRequest {
+    string giveaway_id = 1;
+    string reason = 2;
+}
+
+message RefundEscrowResponse {
+    bool initiated = 1;
+    string reference = 2;
+}
+
+message RoutePaymentRequest {
+    string winner_id = 1;
+    string giveaway_id = 2;
+    string twitter_id = 3;
+    double amount = 4;
+    string currency = 5;
+    string jurisdiction = 6;
+    string payout_destination = 7;
+    string payout_destination_type = 8;
+    string bank_code = 9;
+    string beneficiary_name = 10;
+    string idempotency_key = 11;
+}
+
+message RoutePaymentResponse {
+    bool success = 1;
+    string gateway_used = 2;
+    string gateway_reference = 3;
+    string status = 4;
+    string error_message = 5;
+}
+
+message RetryPayoutRequest {
+    string winner_id = 1;
+    string admin_actor = 2;
+}
+
+message GetGatewayHealthRequest {
+    string gateway = 1;
+}
+
+message GetGatewayHealthResponse {
+    string gateway = 1;
+    string state = 2;  // CLOSED | OPEN | HALF_OPEN
+    string last_checked_at = 3;
+}

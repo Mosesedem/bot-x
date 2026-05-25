@@ -1,0 +1,18 @@
+go 1.25
+
+
+use (
+	./shared
+	./services/xgateway
+	./services/giveaway
+	./services/entry
+	./services/payment-router
+	./services/kyc
+	./services/compliance
+	./services/audit
+	./services/notification
+	./services/reconciliation
+	./services/admin
+	./gen/go
+)
+

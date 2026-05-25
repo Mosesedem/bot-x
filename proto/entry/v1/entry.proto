@@ -1,0 +1,71 @@
+syntax = "proto3";
+package entry.v1;
+option go_package = "github.com/instantf/bot-x/gen/go/entryv1";
+
+service EntryService {
+    rpc RegisterEntry(RegisterEntryRequest) returns (RegisterEntryResponse);
+    rpc GetEntryCount(GetEntryCountRequest) returns (GetEntryCountResponse);
+    rpc GetEligibleEntries(GetEligibleEntriesRequest) returns (GetEligibleEntriesResponse);
+    rpc ScoreParticipant(ScoreParticipantRequest) returns (ScoreParticipantResponse);
+}
+
+message RegisterEntryRequest {
+    string giveaway_id = 1;
+    string twitter_id = 2;
+    string twitter_handle = 3;
+    string entry_type = 4;
+    AccountMetadata account_metadata = 5;
+}
+
+message RegisterEntryResponse {
+    string entry_id = 1;
+    bool accepted = 2;
+    string reject_reason = 3;
+    double trust_score = 4;
+}
+
+message GetEntryCountRequest {
+    string giveaway_id = 1;
+}
+
+message GetEntryCountResponse {
+    int64 count = 1;
+}
+
+message GetEligibleEntriesRequest {
+    string giveaway_id = 1;
+}
+
+message GetEligibleEntriesResponse {
+    repeated Entry entries = 1;
+}
+
+message Entry {
+    string id = 1;
+    string twitter_id = 2;
+    string twitter_handle = 3;
+    double trust_score = 4;
+}
+
+message ScoreParticipantRequest {
+    string twitter_id = 1;
+    AccountMetadata metadata = 2;
+}
+
+message ScoreParticipantResponse {
+    double score = 1;
+    bool eligible = 2;
+    string reject_reason = 3;
+}
+
+message AccountMetadata {
+    string twitter_id = 1;
+    string handle = 2;
+    int32 account_age_days = 3;
+    int32 follower_count = 4;
+    int32 following_count = 5;
+    int32 tweet_count = 6;
+    bool is_verified = 7;
+    bool has_profile_image = 8;
+    bool phone_verified = 9;
+}

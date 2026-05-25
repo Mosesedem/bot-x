@@ -1,0 +1,41 @@
+syntax = "proto3";
+package reconciliation.v1;
+option go_package = "github.com/instantf/bot-x/gen/go/reconciliationv1";
+
+import "google/protobuf/timestamp.proto";
+
+service ReconciliationService {
+    rpc TriggerReconciliation(TriggerRequest) returns (TriggerResponse);
+    rpc GetReconciliationReport(ReportRequest) returns (ReportResponse);
+}
+
+message TriggerRequest {
+    string giveaway_id = 1;
+    string triggered_by = 2;
+}
+
+message TriggerResponse {
+    bool started = 1;
+    string run_id = 2;
+}
+
+message ReportRequest {
+    google.protobuf.Timestamp from = 1;
+    google.protobuf.Timestamp to = 2;
+}
+
+message ReconciliationMismatch {
+    string winner_id = 1;
+    string giveaway_id = 2;
+    string internal_status = 3;
+    string gateway_status = 4;
+    string gateway = 5;
+    string gateway_reference = 6;
+}
+
+message ReportResponse {
+    int32 total_checked = 1;
+    int32 mismatches = 2;
+    repeated ReconciliationMismatch mismatch_details = 3;
+    google.protobuf.Timestamp run_at = 4;
+}

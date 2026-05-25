@@ -1,0 +1,53 @@
+syntax = "proto3";
+package compliance.v1;
+option go_package = "github.com/instantf/bot-x/gen/go/compliancev1";
+
+service ComplianceService {
+    rpc CheckGiveawayEligibility(CheckEligibilityRequest) returns (CheckEligibilityResponse);
+    rpc ScreenOFAC(ScreenOFACRequest) returns (ScreenOFACResponse);
+    rpc IsJurisdictionBlocked(IsJurisdictionBlockedRequest) returns (IsJurisdictionBlockedResponse);
+    rpc GetJurisdictionRules(GetJurisdictionRulesRequest) returns (GetJurisdictionRulesResponse);
+}
+
+message CheckEligibilityRequest {
+    string jurisdiction = 1;
+    string currency = 2;
+    double amount = 3;
+    string host_twitter_id = 4;
+}
+
+message CheckEligibilityResponse {
+    bool eligible = 1;
+    repeated string reasons = 2;
+}
+
+message ScreenOFACRequest {
+    string address = 1;
+    string address_type = 2;  // bank_account | wallet | name
+}
+
+message ScreenOFACResponse {
+    bool clear = 1;
+    string match_detail = 2;
+}
+
+message IsJurisdictionBlockedRequest {
+    string country_code = 1;
+}
+
+message IsJurisdictionBlockedResponse {
+    bool blocked = 1;
+    string reason = 2;
+}
+
+message GetJurisdictionRulesRequest {
+    string country_code = 1;
+}
+
+message GetJurisdictionRulesResponse {
+    string country_code = 1;
+    bool blocked = 2;
+    bool kyc_required = 3;
+    double max_payout_without_kyc = 4;
+    string notes = 5;
+}

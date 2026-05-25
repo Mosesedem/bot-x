@@ -1,0 +1,56 @@
+syntax = "proto3";
+package kyc.v1;
+option go_package = "github.com/instantf/bot-x/gen/go/kycv1";
+
+service KYCService {
+    rpc InitiateKYC(InitiateKYCRequest) returns (InitiateKYCResponse);
+    rpc ValidateKYC(ValidateKYCRequest) returns (ValidateKYCResponse);
+    rpc IsKYCRequired(IsKYCRequiredRequest) returns (IsKYCRequiredResponse);
+    rpc GetKYCConfig(GetKYCConfigRequest) returns (GetKYCConfigResponse);
+}
+
+message InitiateKYCRequest {
+    string winner_id = 1;
+    string jurisdiction = 2;
+    string payout_destination = 3;
+    string kyc_type = 4;  // bvn | nin | stripe_identity
+    string identifier = 5;
+    string phone_number = 6;
+}
+
+message InitiateKYCResponse {
+    string reference = 1;
+    string provider = 2;
+    string status = 3;
+}
+
+message ValidateKYCRequest {
+    string winner_id = 1;
+    string reference = 2;
+    string otp = 3;
+}
+
+message ValidateKYCResponse {
+    string status = 1;  // APPROVED | REJECTED
+    string message = 2;
+}
+
+message IsKYCRequiredRequest {
+    string giveaway_id = 1;
+    string jurisdiction = 2;
+}
+
+message IsKYCRequiredResponse {
+    bool required = 1;
+}
+
+message GetKYCConfigRequest {}
+
+message KYCJurisdictionConfig {
+    string jurisdiction = 1;
+    bool enabled = 2;
+}
+
+message GetKYCConfigResponse {
+    repeated KYCJurisdictionConfig configs = 1;
+}

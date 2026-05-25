@@ -1,0 +1,99 @@
+syntax = "proto3";
+package xgateway.v1;
+option go_package = "github.com/instantf/bot-x/gen/go/xgatewayv1";
+
+service XGatewayService {
+    rpc SendDM(SendDMRequest) returns (SendDMResponse);
+    rpc ReplyToTweet(ReplyToTweetRequest) returns (ReplyToTweetResponse);
+    rpc GetTweetReplies(GetTweetRepliesRequest) returns (GetTweetRepliesResponse);
+    rpc GetRetweeters(GetRetweeterRequest) returns (GetRetweeterResponse);
+    rpc CheckFollows(CheckFollowsRequest) returns (CheckFollowsResponse);
+    rpc GetUserProfile(GetUserProfileRequest) returns (UserProfile);
+    rpc ParseTweetCommand(ParseTweetCommandRequest) returns (GiveawayCommand);
+}
+
+message SendDMRequest {
+    string user_id = 1;
+    string message = 2;
+}
+
+message SendDMResponse {
+    string dm_event_id = 1;
+}
+
+message ReplyToTweetRequest {
+    string tweet_id = 1;
+    string text = 2;
+}
+
+message ReplyToTweetResponse {
+    string reply_tweet_id = 1;
+}
+
+message GetTweetRepliesRequest {
+    string tweet_id = 1;
+    string cursor = 2;
+    int32 max_results = 3;
+}
+
+message GetTweetRepliesResponse {
+    repeated TweetUser users = 1;
+    string next_cursor = 2;
+}
+
+message GetRetweeterRequest {
+    string tweet_id = 1;
+    string cursor = 2;
+    int32 max_results = 3;
+}
+
+message GetRetweeterResponse {
+    repeated TweetUser users = 1;
+    string next_cursor = 2;
+}
+
+message CheckFollowsRequest {
+    string follower_id = 1;
+    string followee_id = 2;
+}
+
+message CheckFollowsResponse {
+    bool follows = 1;
+}
+
+message GetUserProfileRequest {
+    string twitter_id = 1;
+}
+
+message UserProfile {
+    string twitter_id = 1;
+    string handle = 2;
+    int32 follower_count = 3;
+    int32 following_count = 4;
+    int32 tweet_count = 5;
+    int32 account_age_days = 6;
+    bool is_verified = 7;
+    bool has_profile_image = 8;
+}
+
+message TweetUser {
+    string twitter_id = 1;
+    string handle = 2;
+}
+
+message ParseTweetCommandRequest {
+    string tweet_text = 1;
+    string author_id = 2;
+    string source_tweet_id = 3;
+}
+
+message GiveawayCommand {
+    int32 winner_count = 1;
+    double total_amount = 2;
+    double amount_each = 3;
+    string currency = 4;
+    string entry_rule = 5;
+    string source_tweet_id = 6;
+    double confidence = 7;
+    string raw_text = 8;
+}

@@ -1,0 +1,230 @@
+version: '3.9'
+
+services:
+  # ── Infrastructure ──
+  cockroachdb:
+    image: cockroachdb/cockroach:v23.2.0
+    command: start-single-node --insecure
+    ports:
+      - "26257:26257"
+      - "8025:8080"
+    volumes:
+      - cockroach_data:/cockroach/cockroach-data
+    healthcheck:
+      test: ["CMD", "cockroach", "node", "status", "--insecure"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  dragonfly:
+    image: docker.io/dragonflydb/dragonfly:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - dragonfly_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    ports:
+      - "9000:9000"
+      - "8123:8123"
+    environment:
+      - CLICKHOUSE_DB=instantf_audit
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  vault:
+    image: hashicorp/vault:1.16
+    ports:
+      - "8200:8200"
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=dev-root-token
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # ── Microservices ──
+  xgateway:
+    build:
+      context: .
+      dockerfile: services/xgateway/Dockerfile
+    ports:
+      - "8081:8080"
+      - "50051:50051"
+    env_file:
+      - .env
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+      dragonfly:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+
+  giveaway:
+    build:
+      context: .
+      dockerfile: services/giveaway/Dockerfile
+    ports:
+      - "8082:8080"
+      - "50052:50052"
+    env_file:
+      - .env
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+      dragonfly:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+
+  entry:
+    build:
+      context: .
+      dockerfile: services/entry/Dockerfile
+    ports:
+      - "8083:8080"
+      - "50053:50053"
+    env_file:
+      - .env
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+      dragonfly:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+
+  payment-router:
+    build:
+      context: .
+      dockerfile: services/payment-router/Dockerfile
+    ports:
+      - "8084:8080"
+      - "50054:50054"
+    env_file:
+      - .env
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+      dragonfly:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+
+  kyc:
+    build:
+      context: .
+      dockerfile: services/kyc/Dockerfile
+    ports:
+      - "8085:8080"
+      - "50055:50055"
+    env_file:
+      - .env
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+      dragonfly:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+
+  compliance:
+    build:
+      context: .
+      dockerfile: services/compliance/Dockerfile
+    ports:
+      - "8086:8080"
+      - "50056:50056"
+    env_file:
+      - .env
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+      dragonfly:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+
+  audit:
+    build:
+      context: .
+      dockerfile: services/audit/Dockerfile
+    ports:
+      - "8087:8080"
+      - "50057:50057"
+    env_file:
+      - .env
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+
+  notification:
+    build:
+      context: .
+      dockerfile: services/notification/Dockerfile
+    ports:
+      - "8088:8080"
+      - "50058:50058"
+    env_file:
+      - .env
+    depends_on:
+      vault:
+        condition: service_healthy
+
+  reconciliation:
+    build:
+      context: .
+      dockerfile: services/reconciliation/Dockerfile
+    ports:
+      - "8089:8080"
+      - "50059:50059"
+    env_file:
+      - .env
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+      dragonfly:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+
+  admin:
+    build:
+      context: .
+      dockerfile: services/admin/Dockerfile
+    ports:
+      - "8090:8080"
+    env_file:
+      - .env
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+      dragonfly:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+
+volumes:
+  cockroach_data:
+  dragonfly_data:
+  clickhouse_data:
