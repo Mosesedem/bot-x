@@ -9,12 +9,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
-	pbAudit "github.com/instantf/bot-x/gen/go/audit/v1"
-	pbCompliance "github.com/instantf/bot-x/gen/go/compliance/v1"
-	pbGiveaway "github.com/instantf/bot-x/gen/go/giveaway/v1"
-	pbKYC "github.com/instantf/bot-x/gen/go/kyc/v1"
-	pbPayment "github.com/instantf/bot-x/gen/go/payment/v1"
-	"github.com/instantf/bot-x/shared/config"
+	pbAudit "github.com/mosesedem/bot-x/gen/go/audit/v1"
+	pbCompliance "github.com/mosesedem/bot-x/gen/go/compliance/v1"
+	pbGiveaway "github.com/mosesedem/bot-x/gen/go/giveaway/v1"
+	pbKYC "github.com/mosesedem/bot-x/gen/go/kyc/v1"
+	pbPayment "github.com/mosesedem/bot-x/gen/go/payment/v1"
+	"github.com/mosesedem/bot-x/shared/config"
 )
 
 type AdminHandler struct {

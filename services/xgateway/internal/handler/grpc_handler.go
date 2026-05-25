@@ -6,8 +6,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
-	pb "github.com/instantf/bot-x/gen/go/xgateway/v1"
-	"github.com/instantf/bot-x/shared/config"
+	pb "github.com/mosesedem/bot-x/gen/go/xgateway/v1"
+	"github.com/mosesedem/bot-x/shared/config"
 )
 
 type XGatewayGRPCHandler struct {

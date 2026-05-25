@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
-	"github.com/instantf/bot-x/shared/config"
+	"github.com/mosesedem/bot-x/shared/config"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
-	pb "github.com/instantf/bot-x/gen/go/audit/v1"
-	"github.com/instantf/bot-x/services/audit/internal/handler"
+	pb "github.com/mosesedem/bot-x/gen/go/audit/v1"
+	"github.com/mosesedem/bot-x/services/audit/internal/handler"
 )
 
 func main() {

@@ -3,7 +3,7 @@
 # ============================================================
 .PHONY: dev proto migrate test lint build clean
 
-MODULE_PREFIX := github.com/instantf/bot-x
+MODULE_PREFIX := github.com/mosesedem/bot-x
 
 # ── Local Dev ─────────────────────────────────────────────
 dev:

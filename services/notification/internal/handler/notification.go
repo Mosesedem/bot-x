@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	pbX "github.com/instantf/bot-x/gen/go/xgateway/v1"
-	pb "github.com/instantf/bot-x/gen/go/notification/v1"
+	pb "github.com/mosesedem/bot-x/gen/go/notification/v1"
+	pbX "github.com/mosesedem/bot-x/gen/go/xgateway/v1"
 )
 
 type NotificationHandler struct {

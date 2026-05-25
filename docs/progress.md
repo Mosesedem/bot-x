@@ -1,31 +1,35 @@
 # Project Progress: instantf-bot-x
 
 ## Current Status
-The project has successfully reached a fully compilable state. The monorepo architecture is sound, containing 10 microservices communicating via gRPC, sharing a common `gen/go` protobuf directory, and a `shared` library. 
 
-All compilation errors, missing handlers, and unresolved imports have been completely resolved.
+The project is in a stable, compilable state. The monorepo contains 10 microservices that communicate over gRPC, share generated protobuf code in `gen/go`, and rely on shared libraries under `shared`.
+
+Recently completed changes improve local developer experience and production safety:
+
+- Centralized TLS-aware gRPC dial helper added in `shared/grpcdial/dial.go` and wired into service entrypoints to avoid using insecure credentials in production.
+- Local infrastructure in `docker-compose.yml` updated to use Postgres:15 and Redis:7 for Postgres-compatible code paths and Asynq/Redis-based background processing. ClickHouse and Vault remain in the compose stack.
+- Database migration files are present in `/migrations` (Postgres + ClickHouse migrations). These provide the base schema used by service queries.
+- Quick unit tests were added: giveaway state machine tests and an X webhook CRC handler test.
+- A basic GitHub Actions CI workflow was added to run `go test` and `golangci-lint` on push/PR.
 
 ## What is Completed
+
 - [x] Defined all Protobuf schemas in `/proto`.
-- [x] Fixed all compilation errors, resolved unused imports, and stabilized the Go workspace (`go.work`).
-- [x] Wrote multi-stage Dockerfiles for all 10 microservices inside their respective directories.
-- [x] Verified full workspace build functionality (`go build ./...` succeeds).
-- [x] **Implemented Core Services**:
-  - `giveaway`: Manages the lifecycle of giveaways (Draft -> Active -> Locked -> Drawing).
-  - `entry`: Handles user entries from Twitter and calculates trust scoring.
-  - `payment-router`: Dispatches payouts using SafeHaven for NG users and mock gateways for others.
-  - `kyc`: Validates user identity based on jurisdictional rules.
-  - `compliance`: Screens names against OFAC lists and restricts geo-regions.
-  - `audit`: Logs all system events securely to ClickHouse.
-  - `notification`: Dispatches direct messages and replies via Twitter.
-  - `reconciliation`: Background job for verifying escrow and payout statuses.
-  - `xgateway`: The webhook entry point; listens to Twitter Webhooks and translates them into internal commands.
-  - `admin`: Provides internal HTTP endpoints for dashboard management.
+- [x] Fixed compilation errors and stabilized the Go workspace (`go.work`).
+- [x] Multi-stage Dockerfiles exist for microservices.
+- [x] Workspace builds successfully (`go build ./...`).
+- [x] **Implemented Core Services** (same service list as before).
+- [x] Added `shared/grpcdial/dial.go` and updated service dialers to prefer TLS in production.
+- [x] Replaced CockroachDB/Dragonfly test infra with Postgres and Redis in `docker-compose.yml` for local development.
+- [x] Added SQL migrations in `/migrations` (Postgres + ClickHouse) used by services.
+- [x] Added unit tests for the giveaway state machine and a CRC test for the X webhook handler.
+- [x] Added a basic GitHub Actions workflow at `.github/workflows/ci.yml` that runs `go test` and `golangci-lint`.
 
 ## Missing Steps / Next Actions
-- [ ] **Database Schema & Migrations**: Write the SQL schemas (`.sql` files) for Postgres (giveaways, entries, users) and ClickHouse (audit logs). Currently, the codebase queries tables that need to be explicitly created.
-- [ ] **Infrastructure Setup**: Write a comprehensive `docker-compose.yml` to effortlessly spin up Postgres, Redis, ClickHouse, and Vault for local development.
-- [ ] **Twitter Webhook Registration**: Implement the CRC (Challenge-Response Check) required by Twitter and register the webhook URL with the Twitter API.
-- [ ] **Unit and Integration Tests**: Add `*_test.go` files for core business logic, especially for the state machine transitions in the `giveaway` service and the worker processing in `xgateway`.
-- [ ] **CI/CD Pipeline**: Create GitHub Actions workflows for running tests, linting, building Docker images, and automating deployments to Heroku.
-- [ ] **Production gRPC Security**: Switch gRPC dialers from `insecure.NewCredentials()` to TLS for production deployments (especially critical on Heroku).
+
+- [ ] **Migrations automation**: Wire `/migrations` into local startup (Makefile or a compose init job) so Postgres is seeded automatically when spinning up `docker-compose`.
+- [ ] **End-to-end integration tests**: Create integration tests that exercise webhooks → `xgateway` → DB → Asynq worker flows.
+- [ ] **Webhook registration automation & docs**: Add scripts/docs to register the X/Twitter webhook (CRC flow) and instructions for producing `X_CONSUMER_SECRET` and `X_BEARER_TOKEN` values.
+- [ ] **Expand CI/CD**: Extend the CI workflow to build Docker images, run database migrations in CI test jobs, and add releases/builds for staging/prod deploys.
+- [ ] **Production validation**: Ensure `APP_ENV`, `GRPC_TLS_CA_FILE`, and `GRPC_TLS_SERVER_NAME` are set and validated in staging/prod; add tests for TLS handshakes if possible.
+- [ ] **More unit tests**: Flesh out state machine tests, worker tests, and gateway integration tests beyond the initial test coverage added.

@@ -1,6 +1,6 @@
 syntax = "proto3";
 package notification.v1;
-option go_package = "github.com/instantf/bot-x/gen/go/notificationv1";
+option go_package = "github.com/mosesedem/bot-x/gen/go/notificationv1";
 
 service NotificationService {
     rpc SendGiveawayConfirmationDM(GiveawayConfirmationDMRequest) returns (NotificationResponse);

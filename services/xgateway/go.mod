@@ -1,12 +1,12 @@
-module github.com/instantf/bot-x/services/xgateway
+module github.com/mosesedem/bot-x/services/xgateway
 
 go 1.24.0
 
 require (
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/hibiken/asynq v0.26.0
-	github.com/instantf/bot-x/gen/go v0.0.0-00010101000000-000000000000
-	github.com/instantf/bot-x/shared v0.0.0
+	github.com/mosesedem/bot-x/gen/go v0.0.0-00010101000000-000000000000
+	github.com/mosesedem/bot-x/shared v0.0.0
 	github.com/jackc/pgx/v5 v5.6.0
 	go.uber.org/zap v1.21.0
 )
@@ -50,6 +50,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/instantf/bot-x/shared => ../../shared
+replace github.com/mosesedem/bot-x/shared => ../../shared
 
-replace github.com/instantf/bot-x/gen/go => ../../gen/go
+replace github.com/mosesedem/bot-x/gen/go => ../../gen/go

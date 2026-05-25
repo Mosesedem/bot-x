@@ -14,21 +14,21 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/instantf/bot-x/shared/config"
-	"github.com/instantf/bot-x/shared/database"
-	"github.com/instantf/bot-x/shared/gateways/safehaven"
-	"github.com/instantf/bot-x/shared/grpcdial"
-	"github.com/instantf/bot-x/shared/vault"
+	"github.com/mosesedem/bot-x/shared/config"
+	"github.com/mosesedem/bot-x/shared/database"
+	"github.com/mosesedem/bot-x/shared/gateways/safehaven"
+	"github.com/mosesedem/bot-x/shared/grpcdial"
+	"github.com/mosesedem/bot-x/shared/vault"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
-	pbAudit "github.com/instantf/bot-x/gen/go/audit/v1"
-	pbCompliance "github.com/instantf/bot-x/gen/go/compliance/v1"
-	pbGiveaway "github.com/instantf/bot-x/gen/go/giveaway/v1"
-	pbNotification "github.com/instantf/bot-x/gen/go/notification/v1"
-	pb "github.com/instantf/bot-x/gen/go/payment/v1"
-	"github.com/instantf/bot-x/services/payment-router/internal/handler"
-	"github.com/instantf/bot-x/services/payment-router/internal/router"
+	pbAudit "github.com/mosesedem/bot-x/gen/go/audit/v1"
+	pbCompliance "github.com/mosesedem/bot-x/gen/go/compliance/v1"
+	pbGiveaway "github.com/mosesedem/bot-x/gen/go/giveaway/v1"
+	pbNotification "github.com/mosesedem/bot-x/gen/go/notification/v1"
+	pb "github.com/mosesedem/bot-x/gen/go/payment/v1"
+	"github.com/mosesedem/bot-x/services/payment-router/internal/handler"
+	"github.com/mosesedem/bot-x/services/payment-router/internal/router"
 )
 
 func main() {

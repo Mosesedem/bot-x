@@ -8,14 +8,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/instantf/bot-x/shared/config"
-	"github.com/instantf/bot-x/shared/grpcdial"
+	"github.com/mosesedem/bot-x/shared/config"
+	"github.com/mosesedem/bot-x/shared/grpcdial"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
-	pb "github.com/instantf/bot-x/gen/go/notification/v1"
-	pbX "github.com/instantf/bot-x/gen/go/xgateway/v1"
-	"github.com/instantf/bot-x/services/notification/internal/handler"
+	pb "github.com/mosesedem/bot-x/gen/go/notification/v1"
+	pbX "github.com/mosesedem/bot-x/gen/go/xgateway/v1"
+	"github.com/mosesedem/bot-x/services/notification/internal/handler"
 )
 
 func main() {

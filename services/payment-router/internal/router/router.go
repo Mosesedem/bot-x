@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	pbAudit "github.com/instantf/bot-x/gen/go/audit/v1"
-	pbCompliance "github.com/instantf/bot-x/gen/go/compliance/v1"
-	pbGiveaway "github.com/instantf/bot-x/gen/go/giveaway/v1"
-	pb "github.com/instantf/bot-x/gen/go/payment/v1"
-	"github.com/instantf/bot-x/shared/gateways/safehaven"
+	pbAudit "github.com/mosesedem/bot-x/gen/go/audit/v1"
+	pbCompliance "github.com/mosesedem/bot-x/gen/go/compliance/v1"
+	pbGiveaway "github.com/mosesedem/bot-x/gen/go/giveaway/v1"
+	pb "github.com/mosesedem/bot-x/gen/go/payment/v1"
+	"github.com/mosesedem/bot-x/shared/gateways/safehaven"
 )
 
 type PaymentRouter struct {

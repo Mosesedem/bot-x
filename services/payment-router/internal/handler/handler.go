@@ -9,10 +9,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	pbGiveaway "github.com/instantf/bot-x/gen/go/giveaway/v1"
-	pbNotification "github.com/instantf/bot-x/gen/go/notification/v1"
-	"github.com/instantf/bot-x/shared/config"
-	"github.com/instantf/bot-x/shared/gateways/safehaven"
+	pbGiveaway "github.com/mosesedem/bot-x/gen/go/giveaway/v1"
+	pbNotification "github.com/mosesedem/bot-x/gen/go/notification/v1"
+	"github.com/mosesedem/bot-x/shared/config"
+	"github.com/mosesedem/bot-x/shared/gateways/safehaven"
 	"go.uber.org/zap"
 )
 

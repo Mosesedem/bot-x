@@ -11,7 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
-	"github.com/instantf/bot-x/shared/config"
+	"github.com/mosesedem/bot-x/shared/config"
 	"go.uber.org/zap"
 )
 

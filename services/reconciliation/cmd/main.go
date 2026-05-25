@@ -12,15 +12,15 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/instantf/bot-x/shared/config"
-	"github.com/instantf/bot-x/shared/database"
-	"github.com/instantf/bot-x/shared/gateways/safehaven"
-	"github.com/instantf/bot-x/shared/vault"
+	"github.com/mosesedem/bot-x/shared/config"
+	"github.com/mosesedem/bot-x/shared/database"
+	"github.com/mosesedem/bot-x/shared/gateways/safehaven"
+	"github.com/mosesedem/bot-x/shared/vault"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
-	pb "github.com/instantf/bot-x/gen/go/reconciliation/v1"
-	"github.com/instantf/bot-x/services/reconciliation/internal/worker"
+	pb "github.com/mosesedem/bot-x/gen/go/reconciliation/v1"
+	"github.com/mosesedem/bot-x/services/reconciliation/internal/worker"
 )
 
 func main() {

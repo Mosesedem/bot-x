@@ -16,14 +16,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	pbAudit "github.com/instantf/bot-x/gen/go/audit/v1"
-	pbEntry "github.com/instantf/bot-x/gen/go/entry/v1"
-	pb "github.com/instantf/bot-x/gen/go/giveaway/v1"
-	pbKYC "github.com/instantf/bot-x/gen/go/kyc/v1"
-	pbNotification "github.com/instantf/bot-x/gen/go/notification/v1"
-	pbPayment "github.com/instantf/bot-x/gen/go/payment/v1"
-	"github.com/instantf/bot-x/services/giveaway/internal/statemachine"
-	"github.com/instantf/bot-x/shared/config"
+	pbAudit "github.com/mosesedem/bot-x/gen/go/audit/v1"
+	pbEntry "github.com/mosesedem/bot-x/gen/go/entry/v1"
+	pb "github.com/mosesedem/bot-x/gen/go/giveaway/v1"
+	pbKYC "github.com/mosesedem/bot-x/gen/go/kyc/v1"
+	pbNotification "github.com/mosesedem/bot-x/gen/go/notification/v1"
+	pbPayment "github.com/mosesedem/bot-x/gen/go/payment/v1"
+	"github.com/mosesedem/bot-x/services/giveaway/internal/statemachine"
+	"github.com/mosesedem/bot-x/shared/config"
 )
 
 type GiveawayHandler struct {

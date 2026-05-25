@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	pb "github.com/instantf/bot-x/gen/go/reconciliation/v1"
-	"github.com/instantf/bot-x/shared/gateways/safehaven"
+	pb "github.com/mosesedem/bot-x/gen/go/reconciliation/v1"
+	"github.com/mosesedem/bot-x/shared/gateways/safehaven"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

@@ -9,13 +9,13 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
-	pbAudit "github.com/instantf/bot-x/gen/go/audit/v1"
-	pbEntry "github.com/instantf/bot-x/gen/go/entry/v1"
-	pbGiveaway "github.com/instantf/bot-x/gen/go/giveaway/v1"
-	pbNotification "github.com/instantf/bot-x/gen/go/notification/v1"
-	pbPayment "github.com/instantf/bot-x/gen/go/payment/v1"
-	"github.com/instantf/bot-x/shared/config"
-	"github.com/instantf/bot-x/shared/nlp/commandparser"
+	pbAudit "github.com/mosesedem/bot-x/gen/go/audit/v1"
+	pbEntry "github.com/mosesedem/bot-x/gen/go/entry/v1"
+	pbGiveaway "github.com/mosesedem/bot-x/gen/go/giveaway/v1"
+	pbNotification "github.com/mosesedem/bot-x/gen/go/notification/v1"
+	pbPayment "github.com/mosesedem/bot-x/gen/go/payment/v1"
+	"github.com/mosesedem/bot-x/shared/config"
+	"github.com/mosesedem/bot-x/shared/nlp/commandparser"
 	"go.uber.org/zap"
 )
 

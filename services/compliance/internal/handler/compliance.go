@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	pb "github.com/instantf/bot-x/gen/go/compliance/v1"
-	"github.com/instantf/bot-x/shared/ofac"
+	pb "github.com/mosesedem/bot-x/gen/go/compliance/v1"
+	"github.com/mosesedem/bot-x/shared/ofac"
 )
 
 type ComplianceHandler struct {

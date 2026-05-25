@@ -1,4 +1,4 @@
-module github.com/instantf/bot-x/shared
+module github.com/mosesedem/bot-x/shared
 
 go 1.22
 

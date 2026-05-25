@@ -8,8 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	pb "github.com/instantf/bot-x/gen/go/entry/v1"
-	"github.com/instantf/bot-x/shared/fraud"
+	pb "github.com/mosesedem/bot-x/gen/go/entry/v1"
+	"github.com/mosesedem/bot-x/shared/fraud"
 )
 
 type EntryHandler struct {

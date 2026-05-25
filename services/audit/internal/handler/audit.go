@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
-	pb "github.com/instantf/bot-x/gen/go/audit/v1"
+	pb "github.com/mosesedem/bot-x/gen/go/audit/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

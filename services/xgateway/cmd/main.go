@@ -12,21 +12,21 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
-	"github.com/instantf/bot-x/shared/grpcdial"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mosesedem/bot-x/shared/grpcdial"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
-	pbAudit "github.com/instantf/bot-x/gen/go/audit/v1"
-	pbEntry "github.com/instantf/bot-x/gen/go/entry/v1"
-	pbGiveaway "github.com/instantf/bot-x/gen/go/giveaway/v1"
-	pbNotification "github.com/instantf/bot-x/gen/go/notification/v1"
-	pbPayment "github.com/instantf/bot-x/gen/go/payment/v1"
-	pb "github.com/instantf/bot-x/gen/go/xgateway/v1"
-	"github.com/instantf/bot-x/services/xgateway/internal/handler"
-	"github.com/instantf/bot-x/services/xgateway/internal/worker"
-	"github.com/instantf/bot-x/shared/config"
-	"github.com/instantf/bot-x/shared/database"
+	pbAudit "github.com/mosesedem/bot-x/gen/go/audit/v1"
+	pbEntry "github.com/mosesedem/bot-x/gen/go/entry/v1"
+	pbGiveaway "github.com/mosesedem/bot-x/gen/go/giveaway/v1"
+	pbNotification "github.com/mosesedem/bot-x/gen/go/notification/v1"
+	pbPayment "github.com/mosesedem/bot-x/gen/go/payment/v1"
+	pb "github.com/mosesedem/bot-x/gen/go/xgateway/v1"
+	"github.com/mosesedem/bot-x/services/xgateway/internal/handler"
+	"github.com/mosesedem/bot-x/services/xgateway/internal/worker"
+	"github.com/mosesedem/bot-x/shared/config"
+	"github.com/mosesedem/bot-x/shared/database"
 )
 
 func main() {

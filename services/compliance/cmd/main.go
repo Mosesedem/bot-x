@@ -10,13 +10,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/instantf/bot-x/shared/config"
-	"github.com/instantf/bot-x/shared/database"
+	"github.com/mosesedem/bot-x/shared/config"
+	"github.com/mosesedem/bot-x/shared/database"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
-	pb "github.com/instantf/bot-x/gen/go/compliance/v1"
-	"github.com/instantf/bot-x/services/compliance/internal/handler"
+	pb "github.com/mosesedem/bot-x/gen/go/compliance/v1"
+	"github.com/mosesedem/bot-x/services/compliance/internal/handler"
 )
 
 func main() {
