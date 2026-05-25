@@ -1,4 +1,4 @@
-# Project Progress: instantf-bot-x
+# Project Progress: bot-x
 
 ## Current Status
 

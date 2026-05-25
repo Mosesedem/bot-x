@@ -1,5 +1,5 @@
 # ============================================================
-#  instantf-bot-x — Makefile
+#  bot-x — Makefile
 # ============================================================
 .PHONY: dev proto migrate test lint build clean
 
