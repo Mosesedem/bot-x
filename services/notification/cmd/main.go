@@ -13,8 +13,8 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
-	pbX "github.com/instantf/bot-x/gen/go/xgateway/v1"
 	pb "github.com/instantf/bot-x/gen/go/notification/v1"
+	pbX "github.com/instantf/bot-x/gen/go/xgateway/v1"
 	"github.com/instantf/bot-x/services/notification/internal/handler"
 )
 

@@ -12,8 +12,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/instantf/bot-x/shared/grpcdial"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
@@ -23,10 +23,10 @@ import (
 	pbNotification "github.com/instantf/bot-x/gen/go/notification/v1"
 	pbPayment "github.com/instantf/bot-x/gen/go/payment/v1"
 	pb "github.com/instantf/bot-x/gen/go/xgateway/v1"
-	"github.com/instantf/bot-x/shared/config"
-	"github.com/instantf/bot-x/shared/database"
 	"github.com/instantf/bot-x/services/xgateway/internal/handler"
 	"github.com/instantf/bot-x/services/xgateway/internal/worker"
+	"github.com/instantf/bot-x/shared/config"
+	"github.com/instantf/bot-x/shared/database"
 )
 
 func main() {

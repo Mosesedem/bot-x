@@ -15,6 +15,10 @@ import (
 // TransportCredentials returns insecure credentials for non-production environments
 // and TLS credentials for production dials.
 func TransportCredentials(appEnv, target string) (credentials.TransportCredentials, error) {
+	if strings.TrimSpace(appEnv) == "" {
+		appEnv = strings.TrimSpace(os.Getenv("APP_ENV"))
+	}
+
 	if !isProduction(appEnv) {
 		return insecure.NewCredentials(), nil
 	}

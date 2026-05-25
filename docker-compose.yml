@@ -1,27 +1,29 @@
-version: '3.9'
+version: "3.9"
 
 services:
   # ── Infrastructure ──
-  cockroachdb:
-    image: cockroachdb/cockroach:v23.2.0
-    command: start-single-node --insecure
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: botx
     ports:
-      - "26257:26257"
-      - "8025:8080"
+      - "5432:5432"
     volumes:
-      - cockroach_data:/cockroach/cockroach-data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "cockroach", "node", "status", "--insecure"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  dragonfly:
-    image: docker.io/dragonflydb/dragonfly:latest
+  redis:
+    image: redis:7
     ports:
       - "6379:6379"
     volumes:
-      - dragonfly_data:/data
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -71,9 +73,9 @@ services:
     env_file:
       - .env
     depends_on:
-      cockroachdb:
+      postgres:
         condition: service_healthy
-      dragonfly:
+      redis:
         condition: service_healthy
       vault:
         condition: service_healthy
@@ -88,9 +90,9 @@ services:
     env_file:
       - .env
     depends_on:
-      cockroachdb:
+      postgres:
         condition: service_healthy
-      dragonfly:
+      redis:
         condition: service_healthy
       vault:
         condition: service_healthy
@@ -105,9 +107,9 @@ services:
     env_file:
       - .env
     depends_on:
-      cockroachdb:
+      postgres:
         condition: service_healthy
-      dragonfly:
+      redis:
         condition: service_healthy
       vault:
         condition: service_healthy
@@ -122,9 +124,9 @@ services:
     env_file:
       - .env
     depends_on:
-      cockroachdb:
+      postgres:
         condition: service_healthy
-      dragonfly:
+      redis:
         condition: service_healthy
       vault:
         condition: service_healthy
@@ -139,9 +141,9 @@ services:
     env_file:
       - .env
     depends_on:
-      cockroachdb:
+      postgres:
         condition: service_healthy
-      dragonfly:
+      redis:
         condition: service_healthy
       vault:
         condition: service_healthy
@@ -156,9 +158,9 @@ services:
     env_file:
       - .env
     depends_on:
-      cockroachdb:
+      postgres:
         condition: service_healthy
-      dragonfly:
+      redis:
         condition: service_healthy
       vault:
         condition: service_healthy
@@ -201,9 +203,9 @@ services:
     env_file:
       - .env
     depends_on:
-      cockroachdb:
+      postgres:
         condition: service_healthy
-      dragonfly:
+      redis:
         condition: service_healthy
       vault:
         condition: service_healthy
@@ -217,14 +219,14 @@ services:
     env_file:
       - .env
     depends_on:
-      cockroachdb:
+      postgres:
         condition: service_healthy
-      dragonfly:
+      redis:
         condition: service_healthy
       vault:
         condition: service_healthy
 
 volumes:
-  cockroach_data:
-  dragonfly_data:
+  postgres_data:
+  redis_data:
   clickhouse_data:
