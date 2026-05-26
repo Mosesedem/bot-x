@@ -49,10 +49,10 @@ The InstantF Bot-X project is a distributed microservices architecture designed 
 
 ### Secrets Management
 
-- **Observation:** Vault is integrated, and the `vault-setup` Make target seeds dummy secrets. However, the `Config` struct still loads sensitive keys directly from environment variables.
+- **Observation:** Vault is integrated, and the `vault-setup` Make target seeds dummy secrets. Historically, the `Config` struct still loaded sensitive keys directly from `.env` files which were tracked or at risk.
 - **Critique:** Relying on `.env` or system env vars for secrets like `X_CONSUMER_SECRET` or `SAFEHAVEN_CLIENT_SECRET` bypasses the security benefits of HashiCorp Vault.
 - **Recommendation:** Refactor the configuration loader to fetch sensitive credentials dynamically from Vault during startup using the `VAULT_TOKEN`, rather than from environment variables.
-  _Status update:_ The configuration loader (`shared/config/config.go`) now attempts to read critical secrets from Vault when `VAULT_ADDR` and `VAULT_TOKEN` are set. In production mode, failure to initialize Vault will cause startup to fail (fail-closed). This moves the codebase toward Vault-centric secrets management; remaining work includes reading additional provider secrets (Stripe, Paystack, Flutterwave) and migrating deployment manifests to ensure Vault connectivity (AppRole/Auto-Auth) in CI/CD and staging.
+  _Status update:_ The configuration loader (`shared/config/config.go`) now attempts to read critical secrets from Vault when `VAULT_ADDR` and `VAULT_TOKEN` are set. Additionally, `.env.example` has been scrubbed of all live secrets and replaced with safe dummy placeholders to prevent accidental leakage in source control.
 
 ### OFAC Screening
 
@@ -100,6 +100,21 @@ _Status update:_ Phase 2 progressed significantly: Protobufs were converted to `
 - **Observation:** The `Makefile` shows commands for running tests, but the `progress.md` notes that only "quick unit tests" have been added.
 - **Critique:** A system handling financial transactions requires rigorous and exhaustive testing.
 - **Recommendation:** Prioritize the implementation of comprehensive unit tests, integration tests (using `testcontainers-go` for Postgres/Redis), and end-to-end tests covering the entire webhook-to-payout lifecycle.
+
+## 7. Production Readiness (Final Sweep)
+
+During a comprehensive production readiness audit, several mock implementations and hardcoded bypasses were identified. While major items have been resolved, some technical debt remains.
+
+### Resolved Items
+- **Payment Routing:** The `payment-router` previously mocked escrow and payouts for non-NG jurisdictions. It now officially integrates Stripe for `US` and a Crypto client scaffold for `GLOBAL`/`CRYPTO`. Furthermore, all transactions are gated by a database check (`payment_gateway_config`) representing the Admin Dashboard's toggle state.
+- **Debit Account Fallback:** Removed the hardcoded `0123456789` fallback. Payouts dynamically source from the exact virtual `funding_account` linked to the giveaway.
+- **Exposed Secrets:** `.env.example` has been scrubbed.
+
+### Remaining Mock Data (Technical Debt to Address)
+- **XGateway:** `SendDM`, `ReplyToTweet`, and `GetUserProfile` in `xgateway/internal/handler/grpc_handler.go` still return mock data and log dummy responses. Actual Twitter API integration is required.
+- **KYC Service:** `InitiateKYC` returns a mock reference for non-NG jurisdictions, and `ValidateKYC` automatically approves non-Safehaven providers.
+- **Reconciliation Worker:** The reconciliation check count (`services/reconciliation/internal/worker/reconcile.go`) returns a mock calculation.
+- **Crypto Gateway:** The Phase 1 crypto client returns mock on-chain transaction hashes. Phase 3 requires `go-ethereum` and wallet signing integration.
 
 ## Summary
 

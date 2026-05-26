@@ -64,12 +64,7 @@ func (h *KYCHandler) InitiateKYC(ctx context.Context, req *pb.InitiateKYCRequest
 	// Support Nigeria (safehaven) and USA (stripe - stubbed for now)
 	jurisdiction := strings.ToUpper(req.Jurisdiction)
 	if jurisdiction != "NG" {
-		// Mock non-NG jurisdictions
-		return &pb.InitiateKYCResponse{
-			Reference: "mock-ref-" + req.WinnerId,
-			Provider:  "stripe_identity",
-			Status:    "PENDING",
-		}, nil
+		return nil, fmt.Errorf("unsupported jurisdiction for KYC initiation: %s", jurisdiction)
 	}
 
 	if h.shClient == nil {
@@ -113,12 +108,7 @@ func (h *KYCHandler) ValidateKYC(ctx context.Context, req *pb.ValidateKYCRequest
 	}
 
 	if provider != "safehaven" {
-		// Mock validation for other providers
-		_, err = h.db.Exec(ctx, "UPDATE giveaway_winners SET kyc_status = 'APPROVED' WHERE id = $1", req.WinnerId)
-		if err != nil {
-			return nil, err
-		}
-		return &pb.ValidateKYCResponse{Status: "APPROVED", Message: "KYC verification successful"}, nil
+		return nil, fmt.Errorf("unsupported KYC provider: %s", provider)
 	}
 
 	if h.shClient == nil {

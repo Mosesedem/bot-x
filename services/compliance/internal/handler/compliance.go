@@ -93,19 +93,10 @@ func (h *ComplianceHandler) CheckGiveawayEligibility(ctx context.Context, req *p
 }
 
 func (h *ComplianceHandler) ScreenOFAC(ctx context.Context, req *pb.ScreenOFACRequest) (*pb.ScreenOFACResponse, error) {
-	// If screener has no entries, load a dummy fallback for testing
+	// If the screener has no entries, the SDN list has not been loaded yet.
+	// Fail-closed: reject the screen rather than let an unloaded list silently pass everyone.
 	if h.screener.Count() == 0 {
-		// Basic in-memory testing entries
-		testEntries := []string{"evader", "terrorist", "sanctioned individual", "launderer"}
-		for _, e := range testEntries {
-			if strings.Contains(strings.ToLower(req.Address), e) {
-				return &pb.ScreenOFACResponse{
-					Clear:       false,
-					MatchDetail: fmt.Sprintf("Match found in test OFAC list for query: %s", req.Address),
-				}, nil
-			}
-		}
-		return &pb.ScreenOFACResponse{Clear: true}, nil
+		return nil, fmt.Errorf("OFAC screener is not loaded; cannot perform compliance screen")
 	}
 
 	isMatch := h.screener.Screen(req.Address)

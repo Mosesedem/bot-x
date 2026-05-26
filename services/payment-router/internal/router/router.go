@@ -11,112 +11,162 @@ import (
 	pbCompliance "github.com/mosesedem/bot-x/gen/go/compliance/v1"
 	pbGiveaway "github.com/mosesedem/bot-x/gen/go/giveaway/v1"
 	pb "github.com/mosesedem/bot-x/gen/go/payment/v1"
+	"github.com/mosesedem/bot-x/shared/gateways/crypto"
 	"github.com/mosesedem/bot-x/shared/gateways/safehaven"
+	botxstripe "github.com/mosesedem/bot-x/shared/gateways/stripe"
 )
 
 type PaymentRouter struct {
 	pb.UnimplementedPaymentRouterServiceServer
 	db               *pgxpool.Pool
 	shClient         *safehaven.Client
+	stripeClient     *botxstripe.Client
+	cryptoClient     *crypto.Client
 	complianceClient pbCompliance.ComplianceServiceClient
 	auditClient      pbAudit.AuditServiceClient
 	giveawayClient   pbGiveaway.GiveawayServiceClient
-	debitAccount     string
 }
 
 func NewPaymentRouter(
 	db *pgxpool.Pool,
 	shClient *safehaven.Client,
+	stripeClient *botxstripe.Client,
+	cryptoClient *crypto.Client,
 	complianceClient pbCompliance.ComplianceServiceClient,
 	auditClient pbAudit.AuditServiceClient,
 	giveawayClient pbGiveaway.GiveawayServiceClient,
-	debitAccount string,
 ) *PaymentRouter {
-	if debitAccount == "" {
-		debitAccount = "0123456789" // fallback default
-	}
 	return &PaymentRouter{
 		db:               db,
 		shClient:         shClient,
+		stripeClient:     stripeClient,
+		cryptoClient:     cryptoClient,
 		complianceClient: complianceClient,
 		auditClient:      auditClient,
 		giveawayClient:   giveawayClient,
-		debitAccount:     debitAccount,
 	}
 }
 
-func (r *PaymentRouter) InitiateEscrow(ctx context.Context, req *pb.InitiateEscrowRequest) (*pb.InitiateEscrowResponse, error) {
-	// For NG, create a Wema virtual account using Safe Haven
-	jurisdiction := strings.ToUpper(req.Jurisdiction)
-	if jurisdiction != "NG" {
-		// Mock non-NG escrow
-		ref := "mock-escrow-" + req.GiveawayId
-		accNum := "99" + req.GiveawayId[:8]
-		_, err := r.db.Exec(ctx, `
-			UPDATE giveaways 
-			SET escrow_reference = $1, escrow_gateway = $2, funding_account = $3, funding_bank_code = $4 
-			WHERE id = $5
-		`, ref, "stripe", accNum, "stripe", req.GiveawayId)
-		if err != nil {
-			return nil, err
-		}
+func (r *PaymentRouter) isGatewayEnabled(ctx context.Context, gateway string) (bool, error) {
+	var enabled bool
+	err := r.db.QueryRow(ctx, "SELECT enabled FROM payment_gateway_config WHERE gateway_name = $1", gateway).Scan(&enabled)
+	if err != nil {
+		// If row doesn't exist or table isn't fully migrated yet, assume disabled for safety.
+		return false, nil
+	}
+	return enabled, nil
+}
 
-		return &pb.InitiateEscrowResponse{
-			VirtualAccountNumber: accNum,
-			BankName:             "Stripe Escrow",
-			BankCode:             "stripe",
-			AccountName:          "InstantF Escrow",
-			Gateway:              "stripe",
-			Reference:            ref,
-		}, nil
+func (r *PaymentRouter) InitiateEscrow(ctx context.Context, req *pb.InitiateEscrowRequest) (*pb.InitiateEscrowResponse, error) {
+	jurisdiction := strings.ToUpper(req.Jurisdiction)
+
+	var gateway string
+	if jurisdiction == "NG" {
+		gateway = "safehaven"
+	} else if jurisdiction == "US" {
+		gateway = "stripe"
+	} else {
+		gateway = "crypto"
 	}
 
-	if r.shClient == nil {
-		return nil, fmt.Errorf("Safe Haven client not configured")
+	enabled, err := r.isGatewayEnabled(ctx, gateway)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check gateway status: %w", err)
+	}
+	if !enabled {
+		return nil, fmt.Errorf("gateway %s is currently disabled in the admin dashboard", gateway)
 	}
 
 	// Calculate total amount to fund (prize pool + 2% platform fee) in cents
 	fee := (req.Amount*2 + 50) / 100 // 2% fee rounded half-up
 	totalToFund := req.Amount + fee
 
-	// Call Safe Haven to create a virtual account
-	va, err := r.shClient.CreateVirtualAccount(ctx, safehaven.CreateVirtualAccountRequest{
-		AccountName: fmt.Sprintf("InstantF-%s", req.GiveawayId[:8]),
-		BankCode:    "035", // Wema Bank
-		ExternalRef: req.GiveawayId,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Safe Haven virtual account: %w", err)
+	if gateway == "safehaven" {
+		if r.shClient == nil {
+			return nil, fmt.Errorf("Safe Haven client not configured")
+		}
+
+		va, err := r.shClient.CreateVirtualAccount(ctx, safehaven.CreateVirtualAccountRequest{
+			AccountName: fmt.Sprintf("InstantF-%s", req.GiveawayId[:8]),
+			BankCode:    "035", // Wema Bank
+			ExternalRef: req.GiveawayId,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Safe Haven virtual account: %w", err)
+		}
+
+		_, err = r.db.Exec(ctx, "UPDATE giveaways SET escrow_reference = $1, escrow_gateway = 'safehaven', funding_account = $2, funding_bank_code = $3 WHERE id = $4", va.Reference, va.AccountNumber, "035", req.GiveawayId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save virtual account details: %w", err)
+		}
+
+		_, _ = r.auditClient.LogEvent(ctx, &pbAudit.LogEventRequest{
+			EntityType: "giveaway",
+			EntityId:   req.GiveawayId,
+			Action:     "ESCROW_INITIATED",
+			ActorId:    req.HostTwitterId,
+			Gateway:    "safehaven",
+			Payload:    fmt.Sprintf(`{"account_number":"%s","total_to_fund_cents":%d}`, va.AccountNumber, totalToFund),
+		})
+
+		return &pb.InitiateEscrowResponse{
+			VirtualAccountNumber: va.AccountNumber,
+			BankName:             va.BankName,
+			BankCode:             "035",
+			AccountName:          va.AccountName,
+			Gateway:              "safehaven",
+			Reference:            va.Reference,
+		}, nil
+
+	} else if gateway == "stripe" {
+		if r.stripeClient == nil {
+			return nil, fmt.Errorf("Stripe client not configured")
+		}
+
+		pi, err := r.stripeClient.CreateEscrow(ctx, totalToFund, "usd", req.GiveawayId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Stripe escrow: %w", err)
+		}
+
+		_, err = r.db.Exec(ctx, "UPDATE giveaways SET escrow_reference = $1, escrow_gateway = 'stripe', funding_account = $2, funding_bank_code = 'stripe' WHERE id = $3", pi.ID, pi.ID, req.GiveawayId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save Stripe escrow details: %w", err)
+		}
+
+		return &pb.InitiateEscrowResponse{
+			VirtualAccountNumber: pi.ID,
+			BankName:             "Stripe",
+			BankCode:             "stripe",
+			AccountName:          "Stripe Escrow",
+			Gateway:              "stripe",
+			Reference:            pi.ID,
+		}, nil
+
+	} else {
+		// Crypto Gateway
+		if r.cryptoClient == nil {
+			return nil, fmt.Errorf("Crypto client not configured")
+		}
+
+		esc, err := r.cryptoClient.CreateEscrow(ctx, totalToFund, "USDC", req.GiveawayId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Crypto escrow: %w", err)
+		}
+
+		_, err = r.db.Exec(ctx, "UPDATE giveaways SET escrow_reference = $1, escrow_gateway = 'crypto', funding_account = $2, funding_bank_code = 'crypto' WHERE id = $3", esc.TransactionHash, esc.ContractAddress, req.GiveawayId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save Crypto escrow details: %w", err)
+		}
+
+		return &pb.InitiateEscrowResponse{
+			VirtualAccountNumber: esc.ContractAddress,
+			BankName:             "Crypto Base",
+			BankCode:             "crypto",
+			AccountName:          "Crypto Escrow",
+			Gateway:              "crypto",
+			Reference:            esc.TransactionHash,
+		}, nil
 	}
-
-	// Save to database
-	_, err = r.db.Exec(ctx, `
-		UPDATE giveaways 
-		SET escrow_reference = $1, escrow_gateway = 'safehaven', funding_account = $2, funding_bank_code = $3 
-		WHERE id = $4
-	`, va.Reference, va.AccountNumber, "035", req.GiveawayId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to save virtual account details: %w", err)
-	}
-
-	// Log audit event
-	_, _ = r.auditClient.LogEvent(ctx, &pbAudit.LogEventRequest{
-		EntityType: "giveaway",
-		EntityId:   req.GiveawayId,
-		Action:     "ESCROW_INITIATED",
-		ActorId:    req.HostTwitterId,
-		Gateway:    "safehaven",
-		Payload:    fmt.Sprintf(`{"account_number":"%s","total_to_fund_cents":%d}`, va.AccountNumber, totalToFund),
-	})
-
-	return &pb.InitiateEscrowResponse{
-		VirtualAccountNumber: va.AccountNumber,
-		BankName:             va.BankName,
-		BankCode:             "035",
-		AccountName:          va.AccountName,
-		Gateway:              "safehaven",
-		Reference:            va.Reference,
-	}, nil
 }
 
 func (r *PaymentRouter) CheckEscrowFunded(ctx context.Context, req *pb.CheckEscrowFundedRequest) (*pb.CheckEscrowFundedResponse, error) {
@@ -231,100 +281,142 @@ func (r *PaymentRouter) RoutePayment(ctx context.Context, req *pb.RoutePaymentRe
 		return nil, fmt.Errorf("failed to transition winner payout to PROCESSING: %w", err)
 	}
 
-	// 3. Dispatch Payment (Safe Haven for NG, Mock for others)
+	// Fetch funding account from the giveaway
+	var fundingAccount string
+	err = r.db.QueryRow(ctx, "SELECT funding_account FROM giveaways WHERE id = $1", req.GiveawayId).Scan(&fundingAccount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query giveaway funding account: %w", err)
+	}
+
+	// 3. Dispatch Payment
 	jurisdiction := strings.ToUpper(req.Jurisdiction)
-	if jurisdiction != "NG" {
-		// Mock non-NG payout
-		ref := "mock-payout-" + req.WinnerId
-		_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'SUCCESS', gateway_used = 'mock', gateway_reference = $1, payout_completed_at = $2 WHERE id = $3", ref, time.Now(), req.WinnerId)
+	var gateway string
+	if jurisdiction == "NG" {
+		gateway = "safehaven"
+	} else if jurisdiction == "US" {
+		gateway = "stripe"
+	} else {
+		gateway = "crypto"
+	}
+
+	enabled, err := r.isGatewayEnabled(ctx, gateway)
+	if err != nil {
+		_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'FAILED' WHERE id = $1", req.WinnerId)
+		return nil, fmt.Errorf("failed to check gateway status: %w", err)
+	}
+	if !enabled {
+		_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'FAILED' WHERE id = $1", req.WinnerId)
+		return &pb.RoutePaymentResponse{
+			Success:      false,
+			Status:       "FAILED",
+			ErrorMessage: "gateway " + gateway + " is currently disabled",
+		}, nil
+	}
+
+	if gateway == "safehaven" {
+		if r.shClient == nil {
+			_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'FAILED' WHERE id = $1", req.WinnerId)
+			return nil, fmt.Errorf("Safe Haven client not configured")
+		}
+
+		ne, err := r.shClient.NameEnquiry(ctx, safehaven.NameEnquiryRequest{
+			AccountNumber: req.PayoutDestination,
+			BankCode:      req.BankCode,
+		})
+		if err != nil {
+			_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'FAILED' WHERE id = $1", req.WinnerId)
+			return &pb.RoutePaymentResponse{
+				Success:      false,
+				Status:       "FAILED",
+				ErrorMessage: "name enquiry failed: " + err.Error(),
+			}, nil
+		}
+
+		tf, err := r.shClient.Transfer(ctx, safehaven.TransferRequest{
+			NameEnquiryReference: "ne-ref-" + req.WinnerId,
+			DebitAccountNumber:   fundingAccount, // Dynamically use the escrow virtual account
+			BeneficiaryBank:      req.BankCode,
+			BeneficiaryAccount:   req.PayoutDestination,
+			BeneficiaryName:      ne.AccountName,
+			Amount:               req.Amount,
+			IdempotencyKey:       req.IdempotencyKey,
+		})
+		if err != nil {
+			_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'FAILED' WHERE id = $1", req.WinnerId)
+			return &pb.RoutePaymentResponse{
+				Success:      false,
+				Status:       "FAILED",
+				ErrorMessage: "transfer execution failed: " + err.Error(),
+			}, nil
+		}
+
+		_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET gateway_used = 'safehaven', gateway_reference = $1, payout_initiated_at = $2 WHERE id = $3", tf.Reference, time.Now(), req.WinnerId)
 
 		_, _ = r.auditClient.LogEvent(ctx, &pbAudit.LogEventRequest{
 			EntityType: "winner",
 			EntityId:   req.WinnerId,
-			Action:     "PAYOUT_SUCCESS",
-			Gateway:    "mock",
-			Payload:    fmt.Sprintf(`{"amount_cents":%d}`, req.Amount),
+			Action:     "PAYOUT_DISPATCHED",
+			Gateway:    "safehaven",
+			Payload:    fmt.Sprintf(`{"amount_cents":%d,"reference":"%s"}`, req.Amount, tf.Reference),
 		})
 
 		return &pb.RoutePaymentResponse{
 			Success:          true,
-			GatewayUsed:      "mock",
-			GatewayReference: ref,
-			Status:           "SUCCESS",
+			GatewayUsed:      "safehaven",
+			GatewayReference: tf.Reference,
+			Status:           "PROCESSING",
 		}, nil
-	}
 
-	if r.shClient == nil {
-		// Revert status
-		_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'FAILED' WHERE id = $1", req.WinnerId)
-		return nil, fmt.Errorf("Safe Haven client not configured")
-	}
+	} else if gateway == "stripe" {
+		if r.stripeClient == nil {
+			_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'FAILED' WHERE id = $1", req.WinnerId)
+			return nil, fmt.Errorf("Stripe client not configured")
+		}
 
-	// 4. Safe Haven Name Enquiry
-	ne, err := r.shClient.NameEnquiry(ctx, safehaven.NameEnquiryRequest{
-		AccountNumber: req.PayoutDestination,
-		BankCode:      req.BankCode,
-	})
-	if err != nil {
-		_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'FAILED' WHERE id = $1", req.WinnerId)
+		tf, err := r.stripeClient.TransferPayout(ctx, req.Amount, "usd", req.PayoutDestination, req.GiveawayId, req.WinnerId)
+		if err != nil {
+			_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'FAILED' WHERE id = $1", req.WinnerId)
+			return &pb.RoutePaymentResponse{
+				Success:      false,
+				Status:       "FAILED",
+				ErrorMessage: "stripe transfer execution failed: " + err.Error(),
+			}, nil
+		}
+
+		_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET gateway_used = 'stripe', gateway_reference = $1, payout_initiated_at = $2 WHERE id = $3", tf.ID, time.Now(), req.WinnerId)
+
 		return &pb.RoutePaymentResponse{
-			Success:      false,
-			Status:       "FAILED",
-			ErrorMessage: "name enquiry failed: " + err.Error(),
+			Success:          true,
+			GatewayUsed:      "stripe",
+			GatewayReference: tf.ID,
+			Status:           "PROCESSING",
 		}, nil
-	}
 
-	// 5. Safe Haven Transfer
-	tf, err := r.shClient.Transfer(ctx, safehaven.TransferRequest{
-		NameEnquiryReference: "ne-ref-" + req.WinnerId, // Safe Haven name enquiry ref
-		DebitAccountNumber:   r.debitAccount,
-		BeneficiaryBank:      req.BankCode,
-		BeneficiaryAccount:   req.PayoutDestination,
-		BeneficiaryName:      ne.AccountName,
-		Amount:               req.Amount,
-		IdempotencyKey:       req.IdempotencyKey,
-	})
-	if err != nil {
-		_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'FAILED' WHERE id = $1", req.WinnerId)
+	} else {
+		if r.cryptoClient == nil {
+			_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'FAILED' WHERE id = $1", req.WinnerId)
+			return nil, fmt.Errorf("Crypto client not configured")
+		}
+
+		tf, err := r.cryptoClient.TransferPayout(ctx, req.Amount, "USDC", req.PayoutDestination, req.GiveawayId, req.WinnerId)
+		if err != nil {
+			_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'FAILED' WHERE id = $1", req.WinnerId)
+			return &pb.RoutePaymentResponse{
+				Success:      false,
+				Status:       "FAILED",
+				ErrorMessage: "crypto transfer execution failed: " + err.Error(),
+			}, nil
+		}
+
+		_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET gateway_used = 'crypto', gateway_reference = $1, payout_initiated_at = $2 WHERE id = $3", tf.TransactionHash, time.Now(), req.WinnerId)
+
 		return &pb.RoutePaymentResponse{
-			Success:      false,
-			Status:       "FAILED",
-			ErrorMessage: "transfer execution failed: " + err.Error(),
+			Success:          true,
+			GatewayUsed:      "crypto",
+			GatewayReference: tf.TransactionHash,
+			Status:           "PROCESSING",
 		}, nil
 	}
-
-	// Update DB to include gateway ref
-	_, err = r.db.Exec(ctx, `
-		UPDATE giveaway_winners 
-		SET gateway_used = 'safehaven', gateway_reference = $1, payout_initiated_at = $2 
-		WHERE id = $3
-	`, tf.Reference, time.Now(), req.WinnerId)
-	if err != nil {
-		// Log but don't fail, since transaction was dispatched
-		r.auditClient.LogEvent(ctx, &pbAudit.LogEventRequest{
-			EntityType: "winner",
-			EntityId:   req.WinnerId,
-			Action:     "PAYOUT_DB_UPDATE_ERROR",
-			Gateway:    "safehaven",
-			Payload:    fmt.Sprintf(`{"reference":"%s","error":"%s"}`, tf.Reference, err.Error()),
-		})
-	}
-
-	// Log audit event
-	_, _ = r.auditClient.LogEvent(ctx, &pbAudit.LogEventRequest{
-		EntityType: "winner",
-		EntityId:   req.WinnerId,
-		Action:     "PAYOUT_DISPATCHED",
-		Gateway:    "safehaven",
-		Payload:    fmt.Sprintf(`{"amount_cents":%d,"reference":"%s"}`, req.Amount, tf.Reference),
-	})
-
-	return &pb.RoutePaymentResponse{
-		Success:          true,
-		GatewayUsed:      "safehaven",
-		GatewayReference: tf.Reference,
-		Status:           "PROCESSING",
-	}, nil
 }
 
 func (r *PaymentRouter) RetryPayout(ctx context.Context, req *pb.RetryPayoutRequest) (*pb.RoutePaymentResponse, error) {

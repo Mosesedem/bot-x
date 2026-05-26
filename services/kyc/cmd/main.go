@@ -119,7 +119,11 @@ func loadPrivateKey(cfg *config.Config, logger *zap.Logger) (*rsa.PrivateKey, er
 		}
 	}
 
-	// Fallback to generating a dummy private key for local development
-	logger.Warn("no Safe Haven private key configured, generating a temporary dummy key for dev purposes")
+	// Fallback: generate a temporary dummy key for local development only.
+	// In production this must never be reached.
+	if cfg.AppEnv == "production" {
+		return nil, fmt.Errorf("no Safe Haven private key configured; set SAFEHAVEN_PRIVATE_KEY_PATH or store the key in Vault at secret/safehaven/private_key")
+	}
+	logger.Warn("no Safe Haven private key configured, generating a temporary dummy key for local development")
 	return rsa.GenerateKey(rand.Reader, 2048)
 }

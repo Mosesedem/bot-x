@@ -72,8 +72,15 @@ func (w *ReconciliationWorker) GetReconciliationReport(ctx context.Context, req 
 		})
 	}
 
+	var totalChecked int
+	err := w.db.QueryRow(ctx, "SELECT count(*) FROM giveaway_winners WHERE payment_status = 'PROCESSING'").Scan(&totalChecked)
+	if err != nil {
+		w.logger.Error("failed to query total processing count", zap.Error(err))
+		totalChecked = 0
+	}
+
 	return &pb.ReportResponse{
-		TotalChecked:    int32(len(w.mismatches) + 10), // mock check count
+		TotalChecked:    int32(totalChecked),
 		Mismatches:      int32(len(w.mismatches)),
 		MismatchDetails: pbMismatches,
 		RunAt:           timestamppb.New(time.Now()),
