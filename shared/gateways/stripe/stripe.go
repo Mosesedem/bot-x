@@ -31,7 +31,7 @@ func (c *Client) CreateEscrow(ctx context.Context, amount int64, currency, givea
 		},
 	}
 	// For context propagation
-	params.SetContext(ctx)
+	params.Context = ctx
 
 	pi, err := paymentintent.New(params)
 	if err != nil {
@@ -53,7 +53,7 @@ func (c *Client) TransferPayout(ctx context.Context, amount int64, currency, des
 			"purpose":     "payout",
 		},
 	}
-	params.SetContext(ctx)
+	params.Context = ctx
 
 	t, err := transfer.New(params)
 	if err != nil {
