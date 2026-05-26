@@ -1,0 +1,259 @@
+name: instantf-bot-x
+region: lon1
+
+services:
+  - name: xgateway
+    dockerfile_path: services/xgateway/Dockerfile
+    source_dir: .
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    http_port: 8080
+    internal_ports:
+      - 50051
+    routes:
+      - path: /
+    health_check:
+      http_path: /health
+      port: 8080
+    envs:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: BASE_URL
+        value: https://app.example.com
+      - key: DATABASE_URL
+        value: postgresql://botx_user:password@cockroach.example.com:26257/instantf_bot_x?sslmode=verify-full
+      - key: REDIS_URL
+        value: rediss://default:password@redis.example.com:25061
+      - key: GRPC_GIVEAWAY_ADDR
+        value: giveaway:50052
+      - key: GRPC_ENTRY_ADDR
+        value: entry:50053
+      - key: GRPC_PAYMENT_ROUTER_ADDR
+        value: payment-router:50054
+      - key: GRPC_KYC_ADDR
+        value: kyc:50055
+      - key: GRPC_COMPLIANCE_ADDR
+        value: compliance:50056
+      - key: GRPC_AUDIT_ADDR
+        value: audit:50057
+      - key: GRPC_NOTIFICATION_ADDR
+        value: notification:50058
+      - key: GRPC_RECONCILIATION_ADDR
+        value: reconciliation:50059
+      - key: X_CONSUMER_KEY
+        value: replace-me
+      - key: X_CONSUMER_SECRET
+        value: replace-me
+      - key: X_ACCESS_TOKEN
+        value: replace-me
+      - key: X_ACCESS_SECRET
+        value: replace-me
+      - key: X_BEARER_TOKEN
+        value: replace-me
+      - key: X_WEBHOOK_SECRET
+        value: replace-me
+      - key: BOT_TWITTER_ID
+        value: replace-me
+      - key: BOT_TWITTER_HANDLE
+        value: instantf_bot
+
+  - name: giveaway
+    dockerfile_path: services/giveaway/Dockerfile
+    source_dir: .
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    http_port: 50052
+    envs:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: BASE_URL
+        value: https://app.example.com
+      - key: DATABASE_URL
+        value: postgresql://botx_user:password@cockroach.example.com:26257/instantf_bot_x?sslmode=verify-full
+      - key: GRPC_ENTRY_ADDR
+        value: entry:50053
+      - key: GRPC_KYC_ADDR
+        value: kyc:50055
+      - key: GRPC_NOTIFICATION_ADDR
+        value: notification:50058
+      - key: GRPC_PAYMENT_ROUTER_ADDR
+        value: payment-router:50054
+      - key: GRPC_AUDIT_ADDR
+        value: audit:50057
+      - key: ADMIN_JWT_SECRET
+        value: replace-me
+
+  - name: entry
+    dockerfile_path: services/entry/Dockerfile
+    source_dir: .
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    http_port: 50053
+    envs:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        value: postgresql://botx_user:password@cockroach.example.com:26257/instantf_bot_x?sslmode=verify-full
+
+  - name: payment-router
+    dockerfile_path: services/payment-router/Dockerfile
+    source_dir: .
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    http_port: 8080
+    internal_ports:
+      - 50054
+    envs:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: BASE_URL
+        value: https://app.example.com
+      - key: DATABASE_URL
+        value: postgresql://botx_user:password@cockroach.example.com:26257/instantf_bot_x?sslmode=verify-full
+      - key: GRPC_COMPLIANCE_ADDR
+        value: compliance:50056
+      - key: GRPC_AUDIT_ADDR
+        value: audit:50057
+      - key: GRPC_GIVEAWAY_ADDR
+        value: giveaway:50052
+      - key: GRPC_NOTIFICATION_ADDR
+        value: notification:50058
+      - key: SAFEHAVEN_BASE_URL
+        value: https://api.safehavenmfb.com
+      - key: SAFEHAVEN_CLIENT_ID
+        value: replace-me
+      - key: SAFEHAVEN_CLIENT_SECRET
+        value: replace-me
+      - key: SAFEHAVEN_PRIVATE_KEY_PEM
+        value: replace-me
+      - key: STRIPE_SECRET_KEY
+        value: replace-me
+      - key: CRYPTO_RPC_URL
+        value: replace-me
+
+  - name: kyc
+    dockerfile_path: services/kyc/Dockerfile
+    source_dir: .
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    http_port: 50055
+    envs:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: BASE_URL
+        value: https://app.example.com
+      - key: DATABASE_URL
+        value: postgresql://botx_user:password@cockroach.example.com:26257/instantf_bot_x?sslmode=verify-full
+      - key: SAFEHAVEN_BASE_URL
+        value: https://api.safehavenmfb.com
+      - key: SAFEHAVEN_CLIENT_ID
+        value: replace-me
+      - key: SAFEHAVEN_CLIENT_SECRET
+        value: replace-me
+      - key: SAFEHAVEN_PRIVATE_KEY_PEM
+        value: replace-me
+
+  - name: compliance
+    dockerfile_path: services/compliance/Dockerfile
+    source_dir: .
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    http_port: 50056
+    envs:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        value: postgresql://botx_user:password@cockroach.example.com:26257/instantf_bot_x?sslmode=verify-full
+
+  - name: audit
+    dockerfile_path: services/audit/Dockerfile
+    source_dir: .
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    http_port: 50057
+    envs:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: CLICKHOUSE_URL
+        value: clickhouse://clickhouse.example.com:9000
+      - key: CLICKHOUSE_DB
+        value: instantf_audit
+
+  - name: notification
+    dockerfile_path: services/notification/Dockerfile
+    source_dir: .
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    http_port: 50058
+    envs:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: GRPC_XGATEWAY_ADDR
+        value: xgateway:50051
+
+  - name: reconciliation
+    dockerfile_path: services/reconciliation/Dockerfile
+    source_dir: .
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    http_port: 50059
+    envs:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        value: postgresql://botx_user:password@cockroach.example.com:26257/instantf_bot_x?sslmode=verify-full
+      - key: SAFEHAVEN_BASE_URL
+        value: https://api.safehavenmfb.com
+      - key: SAFEHAVEN_CLIENT_ID
+        value: replace-me
+      - key: SAFEHAVEN_CLIENT_SECRET
+        value: replace-me
+      - key: SAFEHAVEN_PRIVATE_KEY_PEM
+        value: replace-me
+
+  - name: admin
+    dockerfile_path: services/admin/Dockerfile
+    source_dir: .
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    http_port: 8080
+    health_check:
+      http_path: /health
+      port: 8080
+    envs:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        value: postgresql://botx_user:password@cockroach.example.com:26257/instantf_bot_x?sslmode=verify-full
+      - key: GRPC_GIVEAWAY_ADDR
+        value: giveaway:50052
+      - key: GRPC_COMPLIANCE_ADDR
+        value: compliance:50056
+      - key: GRPC_KYC_ADDR
+        value: kyc:50055
+      - key: GRPC_PAYMENT_ROUTER_ADDR
+        value: payment-router:50054
+      - key: GRPC_AUDIT_ADDR
+        value: audit:50057
+      - key: ADMIN_JWT_SECRET
+        value: replace-me
