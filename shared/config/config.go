@@ -33,6 +33,7 @@ type Config struct {
 	SafeHavenClientID             string  `mapstructure:"SAFEHAVEN_CLIENT_ID"`
 	SafeHavenClientSecret         string  `mapstructure:"SAFEHAVEN_CLIENT_SECRET"`
 	SafeHavenPrivateKeyPath       string  `mapstructure:"SAFEHAVEN_PRIVATE_KEY_PATH"`
+	SafeHavenPrivateKeyPEM        string  `mapstructure:"SAFEHAVEN_PRIVATE_KEY_PEM"`
 	FlutterwaveSecretKey          string  `mapstructure:"FLUTTERWAVE_SECRET_KEY"`
 	FlutterwaveHashSecret         string  `mapstructure:"FLUTTERWAVE_HASH_SECRET"`
 	PaystackSecretKey             string  `mapstructure:"PAYSTACK_SECRET_KEY"`

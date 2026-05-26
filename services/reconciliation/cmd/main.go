@@ -90,6 +90,16 @@ func main() {
 }
 
 func loadPrivateKey(cfg *config.Config, logger *zap.Logger) (*rsa.PrivateKey, error) {
+	// Try loading directly from PEM environment variable (easiest for Vault-less setups)
+	if cfg.SafeHavenPrivateKeyPEM != "" {
+		keyStr := strings.ReplaceAll(cfg.SafeHavenPrivateKeyPEM, "\\n", "\n") // Handle escaped newlines
+		key, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(keyStr))
+		if err == nil {
+			return key, nil
+		}
+		logger.Warn("failed to parse private key from SAFEHAVEN_PRIVATE_KEY_PEM env var", zap.Error(err))
+	}
+
 	// Try loading from file first
 	if cfg.SafeHavenPrivateKeyPath != "" {
 		keyBytes, err := os.ReadFile(cfg.SafeHavenPrivateKeyPath)

@@ -17,55 +17,17 @@ Since you are using CockroachDB, it is recommended to use **CockroachDB Dedicate
 4. Copy the connection string. It will look like this:
    `postgresql://botx_user:password@free-tier.gcp-us-central1.cockroachlabs.cloud:26257/instantf_bot_x?sslmode=verify-full`
 
-### 1.2 Cache/PubSub: Redis
-You can use DigitalOcean's Managed Redis for this.
+### 1.2 Cache/PubSub: Valkey (Redis Alternative)
+DigitalOcean has transitioned their managed offering to **Valkey**, which is an open-source, 100% drop-in replacement for Redis. Our Go services use standard Redis clients that work perfectly with Valkey.
 1. In the DigitalOcean console, go to **Databases** -> **Create Database Cluster**.
-2. Select **Redis**.
-3. Choose a node plan (e.g., 1GB RAM) and deploy it to the same region where your apps will live (e.g., `lon1` or `nyc1`).
-4. Once provisioned, copy the **Connection String** (use the "Rediss" TLS URL).
+2. Select **Valkey** (or Redis, if the old name is still visible).
+3. Choose a node plan (e.g., 1GB RAM) and deploy it to the same region where your apps will live.
+4. Once provisioned, copy the **Connection String**. It functions identically to a `rediss://` URL and can be plugged directly into the `REDIS_URL` variable.
 
-### 1.3 Secrets Management: HashiCorp Vault
-Vault is critical for this architecture as it stores API keys (Twitter, Stripe, SafeHaven) and private RSA keys.
+### 1.3 Secrets Management: Environment Variables
+InstantF Bot-X relies on standard environment variables for configuration. You do not need external secrets managers like Vault. All secrets, including multiline RSA keys, can be passed directly as environment variables or via a `.env` file on your Droplet.
 
-**Option A: HCP Vault Secrets (Recommended, Easiest)**
-The easiest path is to use HashiCorp's fully managed cloud service.
-1. Sign up for [HCP Vault Secrets](https://cloud.hashicorp.com/).
-2. Create an App named `instantf-bot-x`.
-3. Generate a Service Principal Token. This becomes your `VAULT_TOKEN`.
-
-**Option B: Self-Hosted Vault on a DigitalOcean Droplet**
-If you prefer to host Vault yourself:
-1. Spin up a basic Ubuntu Droplet.
-2. Install Vault:
-   ```bash
-   sudo apt update && sudo apt install gpg wget
-   wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-   echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-   sudo apt update && sudo apt install vault
-   ```
-3. Configure `/etc/vault.d/vault.hcl` to use file storage (for simplicity) or Consul, and enable TLS.
-4. Start Vault: `sudo systemctl start vault`
-5. Initialize Vault: `vault operator init` (Save the unseal keys and Root Token!)
-6. Unseal Vault: `vault operator unseal` (Do this 3 times using the keys).
-7. Log in: `vault login <Root_Token>`
-
-#### Seeding Vault with Secrets
-Whether using HCP or Self-hosted, you must enable the KV engine and seed your secrets. The microservices expect secrets to be stored at specific paths.
-
-```bash
-# Enable Key-Value V2 secrets engine at path secret/
-vault secrets enable -path=secret kv-v2
-
-# 1. X/Twitter API Secrets
-vault kv put secret/twitter api_key="YOUR_API_KEY" api_secret="YOUR_API_SECRET" bearer_token="YOUR_BEARER" client_id="YOUR_CLIENT_ID" client_secret="YOUR_CLIENT_SECRET" webhook_env="YOUR_WEBHOOK_ENV"
-
-# 2. Stripe Secrets
-vault kv put secret/stripe secret_key="YOUR_STRIPE_SECRET" webhook_secret="YOUR_STRIPE_WEBHOOK_SECRET"
-
-# 3. SafeHaven RSA Private Key (Must be PEM formatted)
-# The payment-router, kyc, and reconciliation services will CRASH on boot if this is missing!
-vault kv put secret/safehaven private_key=@safehaven_private.pem
-```
+For the SafeHaven RSA Private Key, use the `SAFEHAVEN_PRIVATE_KEY_PEM` variable. Paste the exact, multiline raw string of your `.pem` key directly into this variable on DigitalOcean.
 
 ---
 
@@ -99,11 +61,9 @@ services:
       - key: DATABASE_URL
         value: "postgresql://botx_user:pass@...:26257/instantf_bot_x" # CockroachDB URL
       - key: REDIS_URL
-        value: "rediss://default:pass@...:25061" # DO Redis URL
-      - key: VAULT_ADDR
-        value: "https://your-vault-url.com"
-      - key: VAULT_TOKEN
-        value: "your-vault-token"
+        value: "rediss://default:pass@...:25061" # DO Valkey URL
+      - key: SAFEHAVEN_PRIVATE_KEY_PEM
+        value: "-----BEGIN RSA PRIVATE KEY-----\n..."
       # Internal gRPC routing (Format: app_name:port)
       - key: GRPC_GIVEAWAY_ADDR
         value: giveaway:50052  
@@ -122,10 +82,6 @@ services:
         value: production
       - key: DATABASE_URL
         value: "postgresql://botx_user:pass@...:26257/instantf_bot_x"
-      - key: VAULT_ADDR
-        value: "https://your-vault-url.com"
-      - key: VAULT_TOKEN
-        value: "your-vault-token"
 
   # [Repeat for entry, payment-router, kyc, compliance, audit, notification, reconciliation, admin]
 ```
@@ -144,8 +100,8 @@ If running 10 apps on the App Platform is too expensive, you can run them all on
    APP_ENV=production
    DATABASE_URL=postgresql://botx_user:password@host:26257/instantf_bot_x?sslmode=verify-full
    REDIS_URL=rediss://default:password@host:25061
-   VAULT_ADDR=https://your-vault-url.com
-   VAULT_TOKEN=your-vault-token
+   SAFEHAVEN_PRIVATE_KEY_PEM="-----BEGIN RSA PRIVATE KEY-----\n..."
+   STRIPE_SECRET_KEY=sk_live_...
    
    # Internal Docker Network gRPC mapping
    GRPC_GIVEAWAY_ADDR=giveaway:50051

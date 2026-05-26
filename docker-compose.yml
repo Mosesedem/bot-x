@@ -47,21 +47,6 @@ services:
       timeout: 5s
       retries: 5
 
-  vault:
-    image: hashicorp/vault:1.16
-    ports:
-      - "8200:8200"
-    environment:
-      - VAULT_DEV_ROOT_TOKEN_ID=dev-root-token
-      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
-    cap_add:
-      - IPC_LOCK
-    healthcheck:
-      test: ["CMD", "vault", "status"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
-
   migrate:
     image: migrate/migrate:v4.17.1
     depends_on:
@@ -100,8 +85,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      vault:
-        condition: service_healthy
 
   giveaway:
     build:
@@ -118,8 +101,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      vault:
         condition: service_healthy
 
   entry:
@@ -138,8 +119,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      vault:
-        condition: service_healthy
 
   payment-router:
     build:
@@ -156,8 +135,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      vault:
         condition: service_healthy
 
   kyc:
@@ -176,8 +153,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      vault:
-        condition: service_healthy
 
   compliance:
     build:
@@ -195,8 +170,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      vault:
-        condition: service_healthy
 
   audit:
     build:
@@ -210,8 +183,6 @@ services:
     depends_on:
       clickhouse:
         condition: service_healthy
-      vault:
-        condition: service_healthy
 
   notification:
     build:
@@ -223,8 +194,6 @@ services:
     env_file:
       - .env
     depends_on:
-      vault:
-        condition: service_healthy
 
   reconciliation:
     build:
@@ -242,8 +211,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      vault:
-        condition: service_healthy
 
   admin:
     build:
@@ -259,8 +226,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      vault:
         condition: service_healthy
 
 volumes:
