@@ -12,6 +12,8 @@ Recently completed changes improve local developer experience and production saf
 - Quick unit tests were added: giveaway state machine tests and an X webhook CRC handler test.
 - A basic GitHub Actions CI workflow was added to run `go test` and `golangci-lint` on push/PR.
 
+- [Phase 1 applied] Security & compliance hardening: enforced production webhook signature verification, switched runtime secret reads to Vault where available, and upgraded OFAC screening to use fuzzy matching (Levenshtein) in the shared screener.
+
 ## What is Completed
 
 - [x] Defined all Protobuf schemas in `/proto`.
@@ -33,3 +35,10 @@ Recently completed changes improve local developer experience and production saf
 - [ ] **Expand CI/CD**: Extend the CI workflow to build Docker images, run database migrations in CI test jobs, and add releases/builds for staging/prod deploys.
 - [ ] **Production validation**: Ensure `APP_ENV`, `GRPC_TLS_CA_FILE`, and `GRPC_TLS_SERVER_NAME` are set and validated in staging/prod; add tests for TLS handshakes if possible.
 - [ ] **More unit tests**: Flesh out state machine tests, worker tests, and gateway integration tests beyond the initial test coverage added.
+
+Recent actions:
+
+- Completed Phase 1 (Security & Compliance Hardening):
+  - Enforced strict webhook signature verification in `services/xgateway/internal/handler/webhook.go` for production environments.
+  - `shared/config/config.go` now attempts to fetch sensitive secrets from Vault (`secret/x`, `secret/safehaven`) when `VAULT_*` vars are present; startup will fail in production if Vault is required but unavailable.
+  - `shared/ofac/screener.go` now uses a Levenshtein fuzzy-match path as a secondary check to reduce false negatives from strict substring checks.

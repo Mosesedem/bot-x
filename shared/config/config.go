@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
-	"github.com/spf13/viper"
 	"github.com/mosesedem/bot-x/shared/vault"
+	"github.com/spf13/viper"
 )
 
 type Config struct {

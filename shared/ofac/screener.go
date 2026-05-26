@@ -3,6 +3,7 @@ package ofac
 import (
 	"encoding/xml"
 	"io"
+	"math"
 	"os"
 	"strings"
 )
@@ -81,12 +82,68 @@ func (s *Screener) Screen(value string) bool {
 	if valLower == "" {
 		return false
 	}
+	// First try simple substring checks for exact matches/contains.
 	for _, entry := range s.entries {
 		if strings.Contains(valLower, entry) || strings.Contains(entry, valLower) {
 			return true
 		}
 	}
+
+	// Fuzzy match using Levenshtein distance normalized by length.
+	// If normalized distance <= 0.20 (i.e., >=80% similarity) treat as match.
+	const threshold = 0.20
+	for _, entry := range s.entries {
+		d := levenshteinDistance(valLower, entry)
+		maxLen := math.Max(float64(len(valLower)), float64(len(entry)))
+		if maxLen == 0 {
+			continue
+		}
+		norm := float64(d) / maxLen
+		if norm <= threshold {
+			return true
+		}
+	}
 	return false
+}
+
+// levenshteinDistance computes the Levenshtein edit distance between two strings.
+func levenshteinDistance(a, b string) int {
+	la := len(a)
+	lb := len(b)
+	if la == 0 {
+		return lb
+	}
+	if lb == 0 {
+		return la
+	}
+
+	prev := make([]int, lb+1)
+	curr := make([]int, lb+1)
+	for j := 0; j <= lb; j++ {
+		prev[j] = j
+	}
+	for i := 1; i <= la; i++ {
+		curr[0] = i
+		ai := a[i-1]
+		for j := 1; j <= lb; j++ {
+			cost := 0
+			if ai != b[j-1] {
+				cost = 1
+			}
+			insertion := curr[j-1] + 1
+			deletion := prev[j] + 1
+			substitution := prev[j-1] + cost
+			curr[j] = insertion
+			if deletion < curr[j] {
+				curr[j] = deletion
+			}
+			if substitution < curr[j] {
+				curr[j] = substitution
+			}
+		}
+		copy(prev, curr)
+	}
+	return prev[lb]
 }
 
 // Count returns the number of unique SDN identifiers loaded.
