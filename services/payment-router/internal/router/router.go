@@ -75,8 +75,9 @@ func (r *PaymentRouter) InitiateEscrow(ctx context.Context, req *pb.InitiateEscr
 		return nil, fmt.Errorf("Safe Haven client not configured")
 	}
 
-	// Calculate total amount to fund (prize pool + 2% platform fee)
-	totalToFund := req.Amount * 1.02
+	// Calculate total amount to fund (prize pool + 2% platform fee) in cents
+	fee := (req.Amount*2 + 50) / 100 // 2% fee rounded half-up
+	totalToFund := req.Amount + fee
 
 	// Call Safe Haven to create a virtual account
 	va, err := r.shClient.CreateVirtualAccount(ctx, safehaven.CreateVirtualAccountRequest{
@@ -105,7 +106,7 @@ func (r *PaymentRouter) InitiateEscrow(ctx context.Context, req *pb.InitiateEscr
 		Action:     "ESCROW_INITIATED",
 		ActorId:    req.HostTwitterId,
 		Gateway:    "safehaven",
-		Payload:    fmt.Sprintf(`{"account_number":"%s","total_to_fund":%.2f}`, va.AccountNumber, totalToFund),
+		Payload:    fmt.Sprintf(`{"account_number":"%s","total_to_fund_cents":%d}`, va.AccountNumber, totalToFund),
 	})
 
 	return &pb.InitiateEscrowResponse{
@@ -133,7 +134,7 @@ func (r *PaymentRouter) CheckEscrowFunded(ctx context.Context, req *pb.CheckEscr
 	if strings.ToUpper(status) == "ACTIVE" {
 		return &pb.CheckEscrowFundedResponse{
 			Funded:         true,
-			AmountReceived: float64(totalBudgetInt) / 100.0,
+			AmountReceived: totalBudgetInt,
 			Gateway:        gateway,
 			Reference:      ref,
 		}, nil
@@ -242,7 +243,7 @@ func (r *PaymentRouter) RoutePayment(ctx context.Context, req *pb.RoutePaymentRe
 			EntityId:   req.WinnerId,
 			Action:     "PAYOUT_SUCCESS",
 			Gateway:    "mock",
-			Payload:    fmt.Sprintf(`{"amount":%.2f}`, req.Amount),
+			Payload:    fmt.Sprintf(`{"amount_cents":%d}`, req.Amount),
 		})
 
 		return &pb.RoutePaymentResponse{
@@ -315,7 +316,7 @@ func (r *PaymentRouter) RoutePayment(ctx context.Context, req *pb.RoutePaymentRe
 		EntityId:   req.WinnerId,
 		Action:     "PAYOUT_DISPATCHED",
 		Gateway:    "safehaven",
-		Payload:    fmt.Sprintf(`{"amount":%.2f,"reference":"%s"}`, req.Amount, tf.Reference),
+		Payload:    fmt.Sprintf(`{"amount_cents":%d,"reference":"%s"}`, req.Amount, tf.Reference),
 	})
 
 	return &pb.RoutePaymentResponse{
@@ -359,7 +360,7 @@ func (r *PaymentRouter) RetryPayout(ctx context.Context, req *pb.RetryPayoutRequ
 		WinnerId:              id,
 		GiveawayId:            giveawayID,
 		TwitterId:             twitterID,
-		Amount:                float64(amountInt) / 100.0,
+		Amount:                amountInt,
 		Currency:              currency,
 		Jurisdiction:          jur,
 		PayoutDestination:     dest,

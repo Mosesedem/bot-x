@@ -22,20 +22,20 @@ func New(cfg Config) *Client {
 }
 
 type TransferRequest struct {
-	AccountBank   string  `json:"account_bank"`
-	AccountNumber string  `json:"account_number"`
-	Amount        float64 `json:"amount"`
-	Narration     string  `json:"narration"`
-	Currency      string  `json:"currency"`
-	Reference     string  `json:"reference"`
-	CallbackURL   string  `json:"callback_url"`
+	AccountBank   string `json:"account_bank"`
+	AccountNumber string `json:"account_number"`
+	Amount        int64  `json:"amount"` // cents/kobo
+	Narration     string `json:"narration"`
+	Currency      string `json:"currency"`
+	Reference     string `json:"reference"`
+	CallbackURL   string `json:"callback_url"`
 }
 
 type TransferResponse struct {
-	ID        int     `json:"id"`
-	Status    string  `json:"status"`
-	Reference string  `json:"reference"`
-	Amount    float64 `json:"amount"`
+	ID        int    `json:"id"`
+	Status    string `json:"status"`
+	Reference string `json:"reference"`
+	Amount    int64  `json:"amount"`
 }
 
 func (c *Client) Transfer(ctx context.Context, req TransferRequest) (*TransferResponse, error) {

@@ -204,21 +204,21 @@ func (c *Client) NameEnquiry(ctx context.Context, req NameEnquiryRequest) (*Name
 }
 
 type TransferRequest struct {
-	NameEnquiryReference string  `json:"nameEnquiryReference"`
-	DebitAccountNumber   string  `json:"debitAccountNumber"`
-	BeneficiaryBank      string  `json:"beneficiaryBank"`
-	BeneficiaryAccount   string  `json:"beneficiaryAccount"`
-	BeneficiaryName      string  `json:"beneficiaryName"`
-	NarrationID          string  `json:"narrationId"`
-	Amount               float64 `json:"amount"`
-	IdempotencyKey       string  `json:"idempotencyKey"`
+	NameEnquiryReference string `json:"nameEnquiryReference"`
+	DebitAccountNumber   string `json:"debitAccountNumber"`
+	BeneficiaryBank      string `json:"beneficiaryBank"`
+	BeneficiaryAccount   string `json:"beneficiaryAccount"`
+	BeneficiaryName      string `json:"beneficiaryName"`
+	NarrationID          string `json:"narrationId"`
+	Amount               int64  `json:"amount"` // cents/kobo
+	IdempotencyKey       string `json:"idempotencyKey"`
 }
 
 type TransferResponse struct {
-	Reference string  `json:"reference"`
-	Status    string  `json: "status"`
-	Amount    float64 `json:"amount"`
-	SessionID string  `json:"sessionId"`
+	Reference string `json:"reference"`
+	Status    string `json: "status"`
+	Amount    int64  `json:"amount"`
+	SessionID string `json:"sessionId"`
 }
 
 func (c *Client) Transfer(ctx context.Context, req TransferRequest) (*TransferResponse, error) {

@@ -36,18 +36,18 @@ type RecipientResponse struct {
 }
 
 type TransferRequest struct {
-	Source    string  `json:"source"` // balance
-	Amount    float64 `json:"amount"` // in kobo/cents for real Paystack, or float for generic
-	Recipient string  `json:"recipient"`
-	Reason    string  `json:"reason"`
-	Reference string  `json:"reference"`
+	Source    string `json:"source"` // balance
+	Amount    int64  `json:"amount"` // in kobo/cents
+	Recipient string `json:"recipient"`
+	Reason    string `json:"reason"`
+	Reference string `json:"reference"`
 }
 
 type TransferResponse struct {
-	Reference    string  `json:"reference"`
-	Status       string  `json:"status"`
-	TransferCode string  `json:"transfer_code"`
-	Amount       float64 `json:"amount"`
+	Reference    string `json:"reference"`
+	Status       string `json:"status"`
+	TransferCode string `json:"transfer_code"`
+	Amount       int64  `json:"amount"`
 }
 
 func (c *Client) CreateTransferRecipient(ctx context.Context, req RecipientRequest) (*RecipientResponse, error) {

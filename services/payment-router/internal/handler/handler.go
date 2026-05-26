@@ -43,11 +43,11 @@ func NewWebhookHandler(
 type SafeHavenWebhookPayload struct {
 	Event string `json:"event"`
 	Data  struct {
-		ExternalRef   string  `json:"externalRef"`
-		Amount        float64 `json:"amount"`
-		Reference     string  `json:"reference"`
-		AccountNumber string  `json:"accountNumber"`
-		Status        string  `json:"status"`
+		ExternalRef   string `json:"externalRef"`
+		Amount        int64  `json:"amount"` // cents/kobo
+		Reference     string `json:"reference"`
+		AccountNumber string `json:"accountNumber"`
+		Status        string `json:"status"`
 	} `json:"data"`
 }
 
@@ -89,7 +89,7 @@ func (h *WebhookHandler) HandleSafeHaven(w http.ResponseWriter, r *http.Request)
 	case "virtual_account.deposit":
 		// Host has funded the escrow
 		giveawayID := payload.Data.ExternalRef
-		h.logger.Info("escrow funded for giveaway", zap.String("giveaway_id", giveawayID), zap.Float64("amount", payload.Data.Amount))
+		h.logger.Info("escrow funded for giveaway", zap.String("giveaway_id", giveawayID), zap.Int64("amount_cents", payload.Data.Amount))
 
 		// Mark giveaway as active via Giveaway gRPC Service
 		_, err := h.giveawayClient.ActivateGiveaway(ctx, &pbGiveaway.GiveawayIDRequest{Id: giveawayID})
@@ -120,7 +120,7 @@ func (h *WebhookHandler) HandleSafeHaven(w http.ResponseWriter, r *http.Request)
 			}
 			_, _ = h.notificationClient.SendPayoutSuccessDM(ctx, &pbNotification.PayoutSuccessDMRequest{
 				WinnerTwitterId: winnerTwitterID,
-				Amount:          amount,
+				Amount:          amountInt,
 				Currency:        currency,
 				BankLast4:       bankLast4,
 				BankName:        bankName,
@@ -147,7 +147,7 @@ func (h *WebhookHandler) HandleSafeHaven(w http.ResponseWriter, r *http.Request)
 		if err == nil {
 			_, _ = h.notificationClient.SendPayoutFailedDM(ctx, &pbNotification.PayoutFailedDMRequest{
 				WinnerTwitterId: winnerTwitterID,
-				Amount:          amount,
+				Amount:          amountInt,
 				Currency:        currency,
 				Reason:          "Gateway transaction failed",
 			})
@@ -214,7 +214,7 @@ func (h *WebhookHandler) checkAndCompleteGiveaway(ctx context.Context, winnerID 
 				TotalWinners:   int32(totalWinners),
 				PaidCount:      int32(paidCount),
 				FailedCount:    int32(failedCount),
-				TotalDisbursed: float64(totalDisbursedInt) / 100.0,
+				TotalDisbursed: totalDisbursedInt,
 				Currency:       currency,
 			})
 		}
