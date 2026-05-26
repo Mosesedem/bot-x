@@ -70,6 +70,7 @@ func Load() (*Config, error) {
 	viper.AutomaticEnv()
 	// Replace dot with underscore for env variables
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	_ = viper.BindEnv("DATABASE_URL")
 
 	// Set Defaults
 	viper.SetDefault("APP_ENV", "production")

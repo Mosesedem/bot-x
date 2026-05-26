@@ -152,8 +152,6 @@ services:
         value: info
       - key: BASE_URL
         value: https://app.example.com
-      - key: DATABASE_URL
-        value: postgresql://botx_user:password@cockroach.example.com:26257/instantf_bot_x?sslmode=verify-full
       - key: SAFEHAVEN_BASE_URL
         value: https://api.safehavenmfb.com
       - key: SAFEHAVEN_CLIENT_ID
@@ -174,8 +172,6 @@ services:
         value: production
       - key: LOG_LEVEL
         value: info
-      - key: DATABASE_URL
-        value: postgresql://botx_user:password@cockroach.example.com:26257/instantf_bot_x?sslmode=verify-full
 
   - name: audit
     dockerfile_path: services/audit/Dockerfile
@@ -218,8 +214,6 @@ services:
         value: production
       - key: LOG_LEVEL
         value: info
-      - key: DATABASE_URL
-        value: postgresql://botx_user:password@cockroach.example.com:26257/instantf_bot_x?sslmode=verify-full
       - key: SAFEHAVEN_BASE_URL
         value: https://api.safehavenmfb.com
       - key: SAFEHAVEN_CLIENT_ID
@@ -243,8 +237,6 @@ services:
         value: production
       - key: LOG_LEVEL
         value: info
-      - key: DATABASE_URL
-        value: postgresql://botx_user:password@cockroach.example.com:26257/instantf_bot_x?sslmode=verify-full
       - key: GRPC_GIVEAWAY_ADDR
         value: giveaway:50052
       - key: GRPC_COMPLIANCE_ADDR

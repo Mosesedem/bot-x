@@ -2,10 +2,13 @@ package app
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -47,7 +50,10 @@ func Run() {
 	}
 	defer database.Close(pool)
 
-	redisOpt := asynq.RedisClientOpt{Addr: cfg.RedisURL}
+	redisOpt, err := redisClientOpt(cfg.RedisURL)
+	if err != nil {
+		logger.Fatal("failed to configure redis", zap.Error(err))
+	}
 	asynqClient := asynq.NewClient(redisOpt)
 	defer asynqClient.Close()
 
@@ -174,4 +180,33 @@ func dialService(addr, name string, logger *zap.Logger) *grpc.ClientConn {
 
 func init() {
 	_ = (*pgxpool.Pool)(nil)
+}
+
+func redisClientOpt(redisURL string) (asynq.RedisClientOpt, error) {
+	parsedURL, err := url.Parse(redisURL)
+	if err != nil {
+		return asynq.RedisClientOpt{}, err
+	}
+
+	opt := asynq.RedisClientOpt{Addr: parsedURL.Host}
+	if parsedURL.User != nil {
+		opt.Username = parsedURL.User.Username()
+		if password, ok := parsedURL.User.Password(); ok {
+			opt.Password = password
+		}
+	}
+
+	if dbValue := strings.TrimPrefix(parsedURL.Path, "/"); dbValue != "" {
+		db, err := strconv.Atoi(dbValue)
+		if err != nil {
+			return asynq.RedisClientOpt{}, err
+		}
+		opt.DB = db
+	}
+
+	if parsedURL.Scheme == "rediss" {
+		opt.TLSConfig = &tls.Config{ServerName: parsedURL.Hostname()}
+	}
+
+	return opt, nil
 }
