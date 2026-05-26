@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"math"
 	"net/http"
 	"time"
 
@@ -62,6 +63,10 @@ func NewGiveawayHandler(
 func (h *GiveawayHandler) CreateGiveaway(ctx context.Context, req *pb.CreateGiveawayRequest) (*pb.Giveaway, error) {
 	// Parse input deadline
 	deadline := time.Now().Add(24 * time.Hour) // default 24h
+
+	// Convert amounts to lowest denomination (e.g., kobo/cents)
+	totalBudgetInt := int64(math.Round(req.TotalBudget * 100))
+	amountPerWinnerInt := int64(math.Round(req.AmountPerWinner * 100))
 
 	var id string
 	err := h.db.QueryRow(ctx, `
@@ -350,14 +355,18 @@ func (h *GiveawayHandler) getGiveawayRecord(ctx context.Context, id string) (*pb
 	var created, deadline time.Time
 	var ref, gateway, fundingAcc, bankCode sql.NullString
 
+	// Scan numeric DB BIGINTs into int64, then convert to float for protobuf/public views
+	var totalBudgetInt int64
+	var amountPerWinnerInt int64
+
 	err := h.db.QueryRow(ctx, `
 		SELECT id, host_twitter_id, source_tweet_id, status, total_budget, currency, 
 			winner_count, amount_per_winner, entry_rule, jurisdiction, escrow_reference, 
 			escrow_gateway, funding_account, funding_bank_code, created_at, deadline_at 
 		FROM giveaways 
 		WHERE id = $1
-	`, id).Scan(&g.Id, &g.HostTwitterId, &g.SourceTweetId, &g.Status, &g.TotalBudget, &g.Currency,
-		&g.WinnerCount, &g.AmountPerWinner, &g.EntryRule, &g.Jurisdiction, &ref, &gateway, &fundingAcc, &bankCode, &created, &deadline)
+	`, id).Scan(&g.Id, &g.HostTwitterId, &g.SourceTweetId, &g.Status, &totalBudgetInt, &g.Currency,
+		&g.WinnerCount, &amountPerWinnerInt, &g.EntryRule, &g.Jurisdiction, &ref, &gateway, &fundingAcc, &bankCode, &created, &deadline)
 
 	if err != nil {
 		return nil, fmt.Errorf("giveaway not found: %w", err)
@@ -369,6 +378,10 @@ func (h *GiveawayHandler) getGiveawayRecord(ctx context.Context, id string) (*pb
 	g.FundingBankCode = bankCode.String
 	g.CreatedAt = timestamppb.New(created)
 	g.DeadlineAt = timestamppb.New(deadline)
+
+	// Convert stored integer amounts (cents) back to major unit float
+	g.TotalBudget = float64(totalBudgetInt) / 100.0
+	g.AmountPerWinner = float64(amountPerWinnerInt) / 100.0
 
 	return &g, nil
 }

@@ -65,9 +65,7 @@ The InstantF Bot-X project is a distributed microservices architecture designed 
 
 ### Monetary Amounts Storage
 
-- **Observation:** The database schema uses `NUMERIC(12, 2)` for amounts.
-- **Critique:** While `NUMERIC` is better than `FLOAT`, storing monetary amounts with decimal places can still lead to rounding errors in complex aggregations or fee calculations.
-- **Recommendation:** Store monetary amounts as integer representations of the lowest denomination (e.g., kobo for NGN, cents for USD) and handle conversion at the presentation layer.
+_Status update:_ Began Phase 2: the base migration has been updated to use `BIGINT` for `total_budget`, `amount_per_winner`, and `amount` for fresh installs, and a new conversion migration (`migrations/000003_migrate_amounts_to_bigint.up.sql`) was added to convert existing `NUMERIC(12,2)` values to integer lowest-denomination values. Next steps: update DB access code (scans/queries) to use integer types and update protobufs or marshalling layers to represent amounts consistently across services.
 
 ### Database Migrations
 

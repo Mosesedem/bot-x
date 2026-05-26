@@ -30,6 +30,8 @@ Recently completed changes improve local developer experience and production saf
 ## Missing Steps / Next Actions
 
 - [ ] **Migrations automation**: Wire `/migrations` into local startup (Makefile or a compose init job) so Postgres is seeded automatically when spinning up `docker-compose`.
+- [ ] **Migrations automation**: Wire `/migrations` into local startup (Makefile or a compose init job) so Postgres is seeded automatically when spinning up `docker-compose`.
+- [Phase 2 started] Database schema updated for monetary storage: initial migration changed monetary column types to `BIGINT` for fresh installs and a conversion migration `000003_migrate_amounts_to_bigint.up.sql` was added to convert existing `NUMERIC(12,2)` values to integer lowest-denomination values (multiplies by 100).
 - [ ] **End-to-end integration tests**: Create integration tests that exercise webhooks → `xgateway` → DB → Asynq worker flows.
 - [ ] **Webhook registration automation & docs**: Add scripts/docs to register the X/Twitter webhook (CRC flow) and instructions for producing `X_CONSUMER_SECRET` and `X_BEARER_TOKEN` values.
 - [ ] **Expand CI/CD**: Extend the CI workflow to build Docker images, run database migrations in CI test jobs, and add releases/builds for staging/prod deploys.
