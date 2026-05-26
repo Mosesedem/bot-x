@@ -105,14 +105,14 @@ func (h *WebhookHandler) HandleSafeHaven(w http.ResponseWriter, r *http.Request)
 		h.logger.Info("payout transfer successful", zap.String("ref", ref))
 
 		var winnerID, winnerTwitterID, currency, bankName, bankLast4 string
-		var amount float64
+		var amountInt int64
 		err := h.db.QueryRow(ctx, `
 			UPDATE giveaway_winners 
 			SET payment_status = 'SUCCESS', payout_completed_at = $1 
 			WHERE gateway_reference = $2
 			RETURNING id, winner_twitter_id, amount, currency, bank_code, payout_destination
-		`, time.Now(), ref).Scan(&winnerID, &winnerTwitterID, &amount, &currency, &bankName, &bankLast4)
-		
+		`, time.Now(), ref).Scan(&winnerID, &winnerTwitterID, &amountInt, &currency, &bankName, &bankLast4)
+
 		if err == nil {
 			// Trigger payout success DM
 			if len(bankLast4) > 4 {
@@ -136,13 +136,13 @@ func (h *WebhookHandler) HandleSafeHaven(w http.ResponseWriter, r *http.Request)
 		h.logger.Info("payout transfer failed", zap.String("ref", ref))
 
 		var winnerID, winnerTwitterID, currency string
-		var amount float64
+		var amountInt int64
 		err := h.db.QueryRow(ctx, `
 			UPDATE giveaway_winners 
 			SET payment_status = 'FAILED' 
 			WHERE gateway_reference = $1
 			RETURNING id, winner_twitter_id, amount, currency
-		`, ref).Scan(&winnerID, &winnerTwitterID, &amount, &currency)
+		`, ref).Scan(&winnerID, &winnerTwitterID, &amountInt, &currency)
 
 		if err == nil {
 			_, _ = h.notificationClient.SendPayoutFailedDM(ctx, &pbNotification.PayoutFailedDMRequest{
@@ -191,12 +191,12 @@ func (h *WebhookHandler) checkAndCompleteGiveaway(ctx context.Context, winnerID 
 	if pendingWinners == 0 {
 		// All payouts completed!
 		var paidCount, failedCount int
-		var totalDisbursed float64
+		var totalDisbursedInt int64
 		var currency, hostTwitterID string
 
 		_ = h.db.QueryRow(ctx, "SELECT count(*) FROM giveaway_winners WHERE giveaway_id = $1 AND payment_status = 'SUCCESS'", giveawayID).Scan(&paidCount)
 		_ = h.db.QueryRow(ctx, "SELECT count(*) FROM giveaway_winners WHERE giveaway_id = $1 AND payment_status = 'FAILED'", giveawayID).Scan(&failedCount)
-		_ = h.db.QueryRow(ctx, "SELECT COALESCE(sum(amount), 0) FROM giveaway_winners WHERE giveaway_id = $1 AND payment_status = 'SUCCESS'", giveawayID).Scan(&totalDisbursed)
+		_ = h.db.QueryRow(ctx, "SELECT COALESCE(sum(amount), 0) FROM giveaway_winners WHERE giveaway_id = $1 AND payment_status = 'SUCCESS'", giveawayID).Scan(&totalDisbursedInt)
 		_ = h.db.QueryRow(ctx, "SELECT host_twitter_id, currency FROM giveaways WHERE id = $1", giveawayID).Scan(&hostTwitterID, &currency)
 
 		// Transition giveaway to COMPLETED
@@ -214,7 +214,7 @@ func (h *WebhookHandler) checkAndCompleteGiveaway(ctx context.Context, winnerID 
 				TotalWinners:   int32(totalWinners),
 				PaidCount:      int32(paidCount),
 				FailedCount:    int32(failedCount),
-				TotalDisbursed: totalDisbursed,
+				TotalDisbursed: float64(totalDisbursedInt) / 100.0,
 				Currency:       currency,
 			})
 		}

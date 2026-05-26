@@ -22,10 +22,10 @@ message CreateGiveawayRequest {
     string host_twitter_id = 1;
     string source_tweet_id = 2;
     string command_tweet_id = 3;
-    double total_budget = 4;
+    int64 total_budget = 4; // amount in lowest denomination (cents/kobo)
     string currency = 5;
     int32 winner_count = 6;
-    double amount_per_winner = 7;
+    int64 amount_per_winner = 7; // amount in lowest denomination (cents/kobo)
     string entry_rule = 8;
     string jurisdiction = 9;
 }
@@ -35,10 +35,10 @@ message Giveaway {
     string host_twitter_id = 2;
     string source_tweet_id = 3;
     string status = 4;
-    double total_budget = 5;
+    int64 total_budget = 5; // amount in lowest denomination (cents/kobo)
     string currency = 6;
     int32 winner_count = 7;
-    double amount_per_winner = 8;
+    int64 amount_per_winner = 8; // amount in lowest denomination (cents/kobo)
     string entry_rule = 9;
     string jurisdiction = 10;
     string escrow_reference = 11;

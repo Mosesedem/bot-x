@@ -120,12 +120,12 @@ func (r *PaymentRouter) InitiateEscrow(ctx context.Context, req *pb.InitiateEscr
 
 func (r *PaymentRouter) CheckEscrowFunded(ctx context.Context, req *pb.CheckEscrowFundedRequest) (*pb.CheckEscrowFundedResponse, error) {
 	var ref, gateway, status, accountNum string
-	var totalBudget float64
+	var totalBudgetInt int64
 	err := r.db.QueryRow(ctx, `
 		SELECT escrow_reference, escrow_gateway, total_budget, status, funding_account 
 		FROM giveaways 
 		WHERE id = $1
-	`, req.GiveawayId).Scan(&ref, &gateway, &totalBudget, &status, &accountNum)
+	`, req.GiveawayId).Scan(&ref, &gateway, &totalBudgetInt, &status, &accountNum)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query giveaway: %w", err)
 	}
@@ -133,7 +133,7 @@ func (r *PaymentRouter) CheckEscrowFunded(ctx context.Context, req *pb.CheckEscr
 	if strings.ToUpper(status) == "ACTIVE" {
 		return &pb.CheckEscrowFundedResponse{
 			Funded:         true,
-			AmountReceived: totalBudget,
+			AmountReceived: float64(totalBudgetInt) / 100.0,
 			Gateway:        gateway,
 			Reference:      ref,
 		}, nil
@@ -207,7 +207,7 @@ func (r *PaymentRouter) RoutePayment(ctx context.Context, req *pb.RoutePaymentRe
 	if !compRes.Clear {
 		// Update winner status to FAILED
 		_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'FAILED' WHERE id = $1", req.WinnerId)
-		
+
 		// Log compliance failure
 		_, _ = r.auditClient.LogEvent(ctx, &pbAudit.LogEventRequest{
 			EntityType: "winner",
@@ -236,7 +236,7 @@ func (r *PaymentRouter) RoutePayment(ctx context.Context, req *pb.RoutePaymentRe
 		// Mock non-NG payout
 		ref := "mock-payout-" + req.WinnerId
 		_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'SUCCESS', gateway_used = 'mock', gateway_reference = $1, payout_completed_at = $2 WHERE id = $3", ref, time.Now(), req.WinnerId)
-		
+
 		_, _ = r.auditClient.LogEvent(ctx, &pbAudit.LogEventRequest{
 			EntityType: "winner",
 			EntityId:   req.WinnerId,
@@ -329,12 +329,12 @@ func (r *PaymentRouter) RoutePayment(ctx context.Context, req *pb.RoutePaymentRe
 func (r *PaymentRouter) RetryPayout(ctx context.Context, req *pb.RetryPayoutRequest) (*pb.RoutePaymentResponse, error) {
 	// Query details for retry
 	var id, giveawayID, twitterID, dest, destType, bankCode, currency, jur, idempotencyKey string
-	var amount float64
+	var amountInt int64
 	err := r.db.QueryRow(ctx, `
 		SELECT id, giveaway_id, winner_twitter_id, payout_destination, payout_destination_type, bank_code, amount, currency, idempotency_key 
 		FROM giveaway_winners 
 		WHERE id = $1
-	`, req.WinnerId).Scan(&id, &giveawayID, &twitterID, &dest, &destType, &bankCode, &amount, &currency, &idempotencyKey)
+	`, req.WinnerId).Scan(&id, &giveawayID, &twitterID, &dest, &destType, &bankCode, &amountInt, &currency, &idempotencyKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query winner details for retry: %w", err)
 	}
@@ -354,12 +354,12 @@ func (r *PaymentRouter) RetryPayout(ctx context.Context, req *pb.RetryPayoutRequ
 		Gateway:    "system",
 	})
 
-	// Route the payment again
+	// Route the payment again (convert stored cents to float)
 	return r.RoutePayment(ctx, &pb.RoutePaymentRequest{
 		WinnerId:              id,
 		GiveawayId:            giveawayID,
 		TwitterId:             twitterID,
-		Amount:                amount,
+		Amount:                float64(amountInt) / 100.0,
 		Currency:              currency,
 		Jurisdiction:          jur,
 		PayoutDestination:     dest,

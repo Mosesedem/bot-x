@@ -62,7 +62,7 @@ func (h *AdminHandler) HTTPHealthCheck(w http.ResponseWriter, r *http.Request) {
 
 func (h *AdminHandler) HTTPGetGiveaway(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
@@ -79,7 +79,7 @@ func (h *AdminHandler) HTTPGetGiveaway(w http.ResponseWriter, r *http.Request) {
 
 func (h *AdminHandler) HTTPCancelGiveaway(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	
+
 	var body struct {
 		Reason string `json:"reason"`
 	}

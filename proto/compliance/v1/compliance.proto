@@ -12,7 +12,7 @@ service ComplianceService {
 message CheckEligibilityRequest {
     string jurisdiction = 1;
     string currency = 2;
-    double amount = 3;
+    int64 amount = 3; // cents/kobo
     string host_twitter_id = 4;
 }
 

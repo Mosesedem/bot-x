@@ -2,6 +2,7 @@ package commandparser
 
 import (
 	"errors"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -29,8 +30,8 @@ const (
 
 type GiveawayCommand struct {
 	WinnerCount   int
-	TotalAmount   float64
-	AmountEach    float64
+	TotalAmount   int64 // cents/kobo
+	AmountEach    int64 // cents/kobo
 	Currency      Currency
 	EntryRule     EntryRule
 	SourceTweetID string
@@ -194,17 +195,21 @@ func (p *Parser) Parse(tweetText string, sourceTweetID string) (*GiveawayCommand
 		return nil, errors.New("could not parse giveaway amount")
 	}
 
-	// 4. Determine total vs. per-winner
+	// 4. Determine total vs. per-winner (compute in units, then convert to cents)
 	isPerWinner := strings.Contains(cleanText, "each") || strings.Contains(cleanText, "per") || strings.Contains(cleanText, "/person")
 
-	var totalAmount, amountEach float64
+	var totalAmountUnits, amountEachUnits float64
 	if isPerWinner {
-		amountEach = rawAmount
-		totalAmount = rawAmount * float64(winnerCount)
+		amountEachUnits = rawAmount
+		totalAmountUnits = rawAmount * float64(winnerCount)
 	} else {
-		totalAmount = rawAmount
-		amountEach = totalAmount / float64(winnerCount)
+		totalAmountUnits = rawAmount
+		amountEachUnits = totalAmountUnits / float64(winnerCount)
 	}
+
+	// Convert to smallest denomination (cents/kobo) with proper rounding
+	totalCents := int64(math.Round(totalAmountUnits * 100.0))
+	eachCents := int64(math.Round(amountEachUnits * 100.0))
 
 	// 5. Extract entry rules
 	hasFollow := strings.Contains(cleanText, "follow")
@@ -234,8 +239,8 @@ func (p *Parser) Parse(tweetText string, sourceTweetID string) (*GiveawayCommand
 
 	return &GiveawayCommand{
 		WinnerCount:   winnerCount,
-		TotalAmount:   totalAmount,
-		AmountEach:    amountEach,
+		TotalAmount:   totalCents,
+		AmountEach:    eachCents,
 		Currency:      currency,
 		EntryRule:     entryRule,
 		SourceTweetID: sourceTweetID,

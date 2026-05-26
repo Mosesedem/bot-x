@@ -13,7 +13,7 @@ service PaymentRouterService {
 
 message InitiateEscrowRequest {
     string giveaway_id = 1;
-    double amount = 2;
+    int64 amount = 2; // amount in lowest denomination (cents/kobo)
     string currency = 3;
     string jurisdiction = 4;
     string host_twitter_id = 5;
@@ -34,7 +34,7 @@ message CheckEscrowFundedRequest {
 
 message CheckEscrowFundedResponse {
     bool funded = 1;
-    double amount_received = 2;
+    int64 amount_received = 2; // amount in lowest denomination (cents/kobo)
     string gateway = 3;
     string reference = 4;
 }
@@ -53,7 +53,7 @@ message RoutePaymentRequest {
     string winner_id = 1;
     string giveaway_id = 2;
     string twitter_id = 3;
-    double amount = 4;
+    int64 amount = 4; // amount in lowest denomination (cents/kobo)
     string currency = 5;
     string jurisdiction = 6;
     string payout_destination = 7;

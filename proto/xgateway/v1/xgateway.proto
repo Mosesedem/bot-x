@@ -89,8 +89,8 @@ message ParseTweetCommandRequest {
 
 message GiveawayCommand {
     int32 winner_count = 1;
-    double total_amount = 2;
-    double amount_each = 3;
+    int64 total_amount = 2; // cents/kobo
+    int64 amount_each = 3; // cents/kobo
     string currency = 4;
     string entry_rule = 5;
     string source_tweet_id = 6;

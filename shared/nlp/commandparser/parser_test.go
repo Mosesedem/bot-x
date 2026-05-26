@@ -12,8 +12,8 @@ func TestParse(t *testing.T) {
 		tweetText     string
 		sourceTweetID string
 		wantCount     int
-		wantTotal     float64
-		wantEach      float64
+		wantTotal     int64
+		wantEach      int64
 		wantCurrency  Currency
 		wantRule      EntryRule
 	}{
@@ -22,8 +22,8 @@ func TestParse(t *testing.T) {
 			tweetText:     "@bot select 10 followers, ₦50,000 total",
 			sourceTweetID: "12345",
 			wantCount:     10,
-			wantTotal:     50000,
-			wantEach:      5000,
+			wantTotal:     5000000,
+			wantEach:      500000,
 			wantCurrency:  CurrencyNGN,
 			wantRule:      RuleMustFollow,
 		},
@@ -32,8 +32,8 @@ func TestParse(t *testing.T) {
 			tweetText:     "@bot pick 3 people who follow me, $50 each",
 			sourceTweetID: "67890",
 			wantCount:     3,
-			wantTotal:     150,
-			wantEach:      50,
+			wantTotal:     15000,
+			wantEach:      5000,
 			wantCurrency:  CurrencyUSD,
 			wantRule:      RuleMustFollow,
 		},
@@ -42,8 +42,8 @@ func TestParse(t *testing.T) {
 			tweetText:     "@bot randomly pick 1 winner from replies, ₦20,000",
 			sourceTweetID: "11111",
 			wantCount:     1,
-			wantTotal:     20000,
-			wantEach:      20000,
+			wantTotal:     2000000,
+			wantEach:      2000000,
 			wantCurrency:  CurrencyNGN,
 			wantRule:      RuleMustReply,
 		},
@@ -52,8 +52,8 @@ func TestParse(t *testing.T) {
 			tweetText:     "@bot choose 10 retweeters, ₦100 each",
 			sourceTweetID: "22222",
 			wantCount:     10,
-			wantTotal:     1000,
-			wantEach:      100,
+			wantTotal:     100000,
+			wantEach:      10000,
 			wantCurrency:  CurrencyNGN,
 			wantRule:      RuleMustRetweet,
 		},
@@ -62,8 +62,8 @@ func TestParse(t *testing.T) {
 			tweetText:     "@bot select 2 winners who follow me and replied, total ₦5,000",
 			sourceTweetID: "33333",
 			wantCount:     2,
-			wantTotal:     5000,
-			wantEach:      2500,
+			wantTotal:     500000,
+			wantEach:      250000,
 			wantCurrency:  CurrencyNGN,
 			wantRule:      RuleMustFollowAndReply,
 		},
@@ -72,8 +72,8 @@ func TestParse(t *testing.T) {
 			tweetText:     "@bot select five people, ₦10k total",
 			sourceTweetID: "44444",
 			wantCount:     5,
-			wantTotal:     10000,
-			wantEach:      2000,
+			wantTotal:     1000000,
+			wantEach:      200000,
 			wantCurrency:  CurrencyNGN,
 			wantRule:      RuleRandom,
 		},
@@ -89,10 +89,10 @@ func TestParse(t *testing.T) {
 				t.Errorf("WinnerCount = %d, want %d", got.WinnerCount, tt.wantCount)
 			}
 			if got.TotalAmount != tt.wantTotal {
-				t.Errorf("TotalAmount = %f, want %f", got.TotalAmount, tt.wantTotal)
+				t.Errorf("TotalAmount = %d, want %d", got.TotalAmount, tt.wantTotal)
 			}
 			if got.AmountEach != tt.wantEach {
-				t.Errorf("AmountEach = %f, want %f", got.AmountEach, tt.wantEach)
+				t.Errorf("AmountEach = %d, want %d", got.AmountEach, tt.wantEach)
 			}
 			if got.Currency != tt.wantCurrency {
 				t.Errorf("Currency = %s, want %s", got.Currency, tt.wantCurrency)

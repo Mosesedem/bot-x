@@ -7,8 +7,8 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"math"
+	"math/big"
 	"net/http"
 	"time"
 
@@ -64,9 +64,9 @@ func (h *GiveawayHandler) CreateGiveaway(ctx context.Context, req *pb.CreateGive
 	// Parse input deadline
 	deadline := time.Now().Add(24 * time.Hour) // default 24h
 
-	// Convert amounts to lowest denomination (e.g., kobo/cents)
-	totalBudgetInt := int64(math.Round(req.TotalBudget * 100))
-	amountPerWinnerInt := int64(math.Round(req.AmountPerWinner * 100))
+	// Amounts are provided in lowest denomination (cents/kobo)
+	totalBudgetInt := req.TotalBudget
+	amountPerWinnerInt := req.AmountPerWinner
 
 	var id string
 	err := h.db.QueryRow(ctx, `
@@ -75,8 +75,8 @@ func (h *GiveawayHandler) CreateGiveaway(ctx context.Context, req *pb.CreateGive
 			winner_count, amount_per_winner, entry_rule, jurisdiction, status, deadline_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'DRAFT', $10)
 		RETURNING id, created_at
-	`, req.HostTwitterId, req.SourceTweetId, req.CommandTweetId, req.TotalBudget, req.Currency,
-		req.WinnerCount, req.AmountPerWinner, req.EntryRule, req.Jurisdiction, deadline).Scan(&id, &deadline)
+	`, req.HostTwitterId, req.SourceTweetId, req.CommandTweetId, totalBudgetInt, req.Currency,
+		req.WinnerCount, amountPerWinnerInt, req.EntryRule, req.Jurisdiction, deadline).Scan(&id, &deadline)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create giveaway: %w", err)
@@ -87,7 +87,7 @@ func (h *GiveawayHandler) CreateGiveaway(ctx context.Context, req *pb.CreateGive
 		EntityId:   id,
 		Action:     "CREATE",
 		ActorId:    req.HostTwitterId,
-		Payload:    fmt.Sprintf(`{"budget":%.2f,"winners":%d}`, req.TotalBudget, req.WinnerCount),
+		Payload:    fmt.Sprintf(`{"budget_cents":%d,"winners":%d}`, req.TotalBudget, req.WinnerCount),
 	})
 
 	return &pb.Giveaway{
@@ -235,12 +235,13 @@ func (h *GiveawayHandler) DrawWinners(ctx context.Context, req *pb.GiveawayIDReq
 		winnerIDs = append(winnerIDs, entry.TwitterId)
 
 		// Insert into giveaway_winners
+		amountInt := g.AmountPerWinner
 		_, err := h.db.Exec(ctx, `
 			INSERT INTO giveaway_winners (
 				giveaway_id, winner_twitter_id, winner_twitter_handle, kyc_status, payment_status, amount, currency
 			) VALUES ($1, $2, $3, $4, $5, $6, $7)
 			ON CONFLICT (giveaway_id, winner_twitter_id) DO NOTHING
-		`, g.Id, entry.TwitterId, entry.TwitterHandle, kycStatus, paymentStatus, g.AmountPerWinner, g.Currency)
+			`, g.Id, entry.TwitterId, entry.TwitterHandle, kycStatus, paymentStatus, amountInt, g.Currency)
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to save winner details: %w", err)
@@ -379,9 +380,9 @@ func (h *GiveawayHandler) getGiveawayRecord(ctx context.Context, id string) (*pb
 	g.CreatedAt = timestamppb.New(created)
 	g.DeadlineAt = timestamppb.New(deadline)
 
-	// Convert stored integer amounts (cents) back to major unit float
-	g.TotalBudget = float64(totalBudgetInt) / 100.0
-	g.AmountPerWinner = float64(amountPerWinnerInt) / 100.0
+	// Assign stored integer amounts (cents) to protobuf fields (int64)
+	g.TotalBudget = totalBudgetInt
+	g.AmountPerWinner = amountPerWinnerInt
 
 	return &g, nil
 }
@@ -442,10 +443,10 @@ func (h *GiveawayHandler) HTTPGetGiveaway(w http.ResponseWriter, r *http.Request
 	resp := map[string]interface{}{
 		"id":                g.Id,
 		"status":            g.Status,
-		"total_budget":      g.TotalBudget,
+		"total_budget":      float64(g.TotalBudget) / 100.0,
 		"currency":          g.Currency,
 		"winner_count":      g.WinnerCount,
-		"amount_per_winner": g.AmountPerWinner,
+		"amount_per_winner": float64(g.AmountPerWinner) / 100.0,
 		"entry_rule":        g.EntryRule,
 		"deadline_at":       g.DeadlineAt.AsTime().Format(time.RFC3339),
 	}
@@ -478,10 +479,12 @@ func (h *GiveawayHandler) HTTPGetWinners(w http.ResponseWriter, r *http.Request)
 	var winners []Winner
 	for rows.Next() {
 		var win Winner
-		if err := rows.Scan(&win.TwitterID, &win.TwitterHandle, &win.PaymentStatus, &win.Amount, &win.Currency); err != nil {
+		var amountInt int64
+		if err := rows.Scan(&win.TwitterID, &win.TwitterHandle, &win.PaymentStatus, &amountInt, &win.Currency); err != nil {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
+		win.Amount = float64(amountInt) / 100.0
 		winners = append(winners, win)
 	}
 

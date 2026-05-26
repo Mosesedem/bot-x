@@ -56,9 +56,9 @@ func NewEventWorker(
 
 type XWebhookEventWrapper struct {
 	TweetCreateEvents []struct {
-		IDStr        string `json:"id_str"`
-		Text         string `json:"text"`
-		User         struct {
+		IDStr string `json:"id_str"`
+		Text  string `json:"text"`
+		User  struct {
 			IDStr      string `json:"id_str"`
 			ScreenName string `json:"screen_name"`
 		} `json:"user"`
@@ -150,18 +150,20 @@ func (w *EventWorker) handleTweetMention(ctx context.Context, tweetID, text, aut
 		return fmt.Errorf("failed to initiate escrow for draft giveaway: %w", err)
 	}
 
-	// Call Notification Service to DM host
+	// Compute 2% platform fee in smallest denomination and DM host
+	fee := (g.TotalBudget*2 + 50) / 100 // 2% fee, rounded half-up
+	totalToFund := g.TotalBudget + fee
 	_, err = w.notificationClient.SendGiveawayConfirmationDM(ctx, &pbNotification.GiveawayConfirmationDMRequest{
-		HostTwitterId:         g.HostTwitterId,
-		GiveawayId:            g.Id,
-		WinnerCount:           g.WinnerCount,
-		AmountPerWinner:       g.AmountPerWinner,
-		Currency:              g.Currency,
-		EntryRule:             g.EntryRule,
-		VirtualAccountNumber:  escrow.VirtualAccountNumber,
-		BankName:              escrow.BankName,
-		AccountName:           escrow.AccountName,
-		TotalToFund:           g.TotalBudget * 1.02, // Budget + 2% platform fee
+		HostTwitterId:        g.HostTwitterId,
+		GiveawayId:           g.Id,
+		WinnerCount:          g.WinnerCount,
+		AmountPerWinner:      g.AmountPerWinner,
+		Currency:             g.Currency,
+		EntryRule:            g.EntryRule,
+		VirtualAccountNumber: escrow.VirtualAccountNumber,
+		BankName:             escrow.BankName,
+		AccountName:          escrow.AccountName,
+		TotalToFund:          totalToFund,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to DM host: %w", err)
@@ -175,14 +177,14 @@ func (w *EventWorker) handleDM(ctx context.Context, senderID, text string) error
 
 	// Check if this is a host responding to YES/NO confirmation of a DRAFT giveaway
 	var draftID string
-	var totalBudget float64
+	var totalBudgetInt int64
 	var currency string
 	err := w.db.QueryRow(ctx, `
 		SELECT id, total_budget, currency 
 		FROM giveaways 
 		WHERE host_twitter_id = $1 AND status = 'DRAFT' 
 		ORDER BY created_at DESC LIMIT 1
-	`, senderID).Scan(&draftID, &totalBudget, &currency)
+	`, senderID).Scan(&draftID, &totalBudgetInt, &currency)
 
 	if err == nil {
 		if textLower == "yes" {
@@ -206,13 +208,13 @@ func (w *EventWorker) handleDM(ctx context.Context, senderID, text string) error
 
 		// Find the latest PENDING winner record for this X ID
 		var winID, giveawayID, winCurrency string
-		var winAmount float64
+		var winAmountInt int64
 		err = w.db.QueryRow(ctx, `
 			SELECT id, giveaway_id, amount, currency 
 			FROM giveaway_winners 
 			WHERE winner_twitter_id = $1 AND payment_status IN ('PENDING', 'FAILED') 
 			ORDER BY created_at DESC LIMIT 1
-		`, senderID).Scan(&winID, &giveawayID, &winAmount, &winCurrency)
+		`, senderID).Scan(&winID, &giveawayID, &winAmountInt, &winCurrency)
 
 		if err == nil {
 			// Map Bank Name to Bank Code (e.g. Wema -> 035, GTB -> 058, Zenith -> 057)
@@ -235,12 +237,12 @@ func (w *EventWorker) handleDM(ctx context.Context, senderID, text string) error
 				jur = "NG"
 			}
 
-			// Dispatch Payment
+			// Dispatch Payment (send stored cents as int64)
 			_, err = w.paymentClient.RoutePayment(ctx, &pbPayment.RoutePaymentRequest{
 				WinnerId:              winID,
 				GiveawayId:            giveawayID,
 				TwitterId:             senderID,
-				Amount:                winAmount,
+				Amount:                winAmountInt,
 				Currency:              winCurrency,
 				Jurisdiction:          jur,
 				PayoutDestination:     accountNum,

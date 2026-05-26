@@ -73,10 +73,10 @@ func (w *ReconciliationWorker) GetReconciliationReport(ctx context.Context, req 
 	}
 
 	return &pb.ReportResponse{
-		TotalChecked:     int32(len(w.mismatches) + 10), // mock check count
-		Mismatches:       int32(len(w.mismatches)),
-		MismatchDetails:  pbMismatches,
-		RunAt:            timestamppb.New(time.Now()),
+		TotalChecked:    int32(len(w.mismatches) + 10), // mock check count
+		Mismatches:      int32(len(w.mismatches)),
+		MismatchDetails: pbMismatches,
+		RunAt:           timestamppb.New(time.Now()),
 	}, nil
 }
 

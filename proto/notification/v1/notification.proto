@@ -21,20 +21,20 @@ message GiveawayConfirmationDMRequest {
     string host_twitter_id = 1;
     string giveaway_id = 2;
     int32 winner_count = 3;
-    double amount_per_winner = 4;
+    int64 amount_per_winner = 4; // cents/kobo
     string currency = 5;
     string entry_rule = 6;
     string virtual_account_number = 7;
     string bank_name = 8;
     string account_name = 9;
-    double total_to_fund = 10;  // budget + platform fee
+    int64 total_to_fund = 10;  // budget + platform fee (cents/kobo)
 }
 
 message ActivationReplyRequest {
     string tweet_id = 1;
     string giveaway_id = 2;
     int32 winner_count = 3;
-    double amount_per_winner = 4;
+    int64 amount_per_winner = 4;
     string currency = 5;
     string deadline_description = 6;
 }
@@ -42,14 +42,14 @@ message ActivationReplyRequest {
 message WinnerDMRequest {
     string winner_twitter_id = 1;
     string giveaway_id = 2;
-    double amount = 3;
+    int64 amount = 3; // cents/kobo
     string currency = 4;
     string host_handle = 5;
 }
 
 message PayoutSuccessDMRequest {
     string winner_twitter_id = 1;
-    double amount = 2;
+    int64 amount = 2; // cents/kobo
     string currency = 3;
     string bank_last4 = 4;
     string bank_name = 5;
@@ -57,7 +57,7 @@ message PayoutSuccessDMRequest {
 
 message PayoutFailedDMRequest {
     string winner_twitter_id = 1;
-    double amount = 2;
+    int64 amount = 2; // cents/kobo
     string currency = 3;
     string reason = 4;
 }
@@ -68,13 +68,13 @@ message HostCompletionDMRequest {
     int32 total_winners = 3;
     int32 paid_count = 4;
     int32 failed_count = 5;
-    double total_disbursed = 6;
+    int64 total_disbursed = 6; // cents/kobo
     string currency = 7;
 }
 
 message KYCRequestDMRequest {
     string winner_twitter_id = 1;
     string kyc_link = 2;
-    double amount = 3;
+    int64 amount = 3; // cents/kobo
     string currency = 4;
 }

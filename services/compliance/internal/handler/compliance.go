@@ -121,7 +121,7 @@ func (h *ComplianceHandler) ScreenOFAC(ctx context.Context, req *pb.ScreenOFACRe
 
 func (h *ComplianceHandler) IsJurisdictionBlocked(ctx context.Context, req *pb.IsJurisdictionBlockedRequest) (*pb.IsJurisdictionBlockedResponse, error) {
 	cc := strings.ToUpper(req.CountryCode)
-	
+
 	// Supported jurisdictions are NG (and US if configured)
 	if cc == "NG" {
 		return &pb.IsJurisdictionBlockedResponse{Blocked: false}, nil
