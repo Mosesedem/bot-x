@@ -60,11 +60,26 @@ func (h *XWebhookHandler) HandleEvents(w http.ResponseWriter, r *http.Request) {
 
 	// Verify X Webhook signature if configured
 	signature := r.Header.Get("X-Twitter-Webhooks-Signature")
-	if h.cfg.XConsumerSecret != "" && signature != "" {
-		if !h.verifySignature(body, signature) {
-			h.logger.Warn("invalid X webhook signature received")
+	// In production, require a valid signature and secret. Fail-closed.
+	if h.cfg.AppEnv == "production" {
+		if h.cfg.XConsumerSecret == "" {
+			h.logger.Error("missing X consumer secret in production")
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
+		}
+		if signature == "" || !h.verifySignature(body, signature) {
+			h.logger.Warn("invalid or missing X webhook signature received")
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+	} else {
+		// Non-production: verify if both secret and signature are present, otherwise allow.
+		if h.cfg.XConsumerSecret != "" && signature != "" {
+			if !h.verifySignature(body, signature) {
+				h.logger.Warn("invalid X webhook signature received")
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
 		}
 	}
 
@@ -90,9 +105,17 @@ func (h *XWebhookHandler) verifySignature(body []byte, signatureHeader string) b
 
 	mac := hmac.New(sha256.New, []byte(h.cfg.XConsumerSecret))
 	mac.Write(body)
-	expectedSig := hex.EncodeToString(mac.Sum(nil))
+	expectedHex := hex.EncodeToString(mac.Sum(nil))
+	expectedBase64 := base64.StdEncoding.EncodeToString(mac.Sum(nil))
 
-	return hmac.Equal([]byte(signature), []byte(expectedSig))
+	// Accept either hex or base64 encoded HMACs for compatibility.
+	if hmac.Equal([]byte(signature), []byte(expectedHex)) {
+		return true
+	}
+	if hmac.Equal([]byte(signature), []byte(expectedBase64)) {
+		return true
+	}
+	return false
 }
 
 // Struct definitions to match X Account Activity API events

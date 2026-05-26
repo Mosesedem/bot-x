@@ -1,10 +1,13 @@
 package config
 
 import (
+	"context"
+	"fmt"
 	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
+	"github.com/mosesedem/bot-x/shared/vault"
 )
 
 type Config struct {
@@ -71,7 +74,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("APP_ENV", "development")
 	viper.SetDefault("LOG_LEVEL", "info")
 	viper.SetDefault("BASE_URL", "http://localhost:8080")
-	viper.SetDefault("DATABASE_URL", "postgresql://root@localhost:26257/instantf?sslmode=disable")
+	viper.SetDefault("DATABASE_URL", "postgresql://moses:NDnjNOsayOaJ4lqkSdNppA@general-16173.jxf.gcp-europe-west3.cockroachlabs.cloud:26257/instant-tf?sslmode=verify-full")
 	viper.SetDefault("REDIS_URL", "redis://localhost:6379")
 	viper.SetDefault("CLICKHOUSE_URL", "clickhouse://localhost:9000")
 	viper.SetDefault("CLICKHOUSE_DB", "instantf_audit")
@@ -100,6 +103,36 @@ func Load() (*Config, error) {
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
 		return nil, err
+	}
+
+	// If Vault is configured, try to load sensitive credentials from it.
+	if cfg.VaultAddr != "" && cfg.VaultToken != "" {
+		ctx := context.Background()
+		vclient, err := vault.New(cfg.VaultAddr, cfg.VaultToken)
+		if err != nil {
+			// In production we require Vault to be available.
+			if cfg.AppEnv == "production" {
+				return nil, fmt.Errorf("failed to initialize Vault client: %w", err)
+			}
+		} else {
+			// Try to read X/Twitter consumer secrets from secret/x
+			if val, err := vclient.GetSecretString(ctx, "x", "consumer_secret"); err == nil && val != "" {
+				cfg.XConsumerSecret = val
+			}
+			if val, err := vclient.GetSecretString(ctx, "x", "consumer_key"); err == nil && val != "" {
+				cfg.XConsumerKey = val
+			}
+
+			// Try to read SafeHaven credentials from secret/safehaven
+			if val, err := vclient.GetSecretString(ctx, "safehaven", "client_secret"); err == nil && val != "" {
+				cfg.SafeHavenClientSecret = val
+			}
+			if val, err := vclient.GetSecretString(ctx, "safehaven", "client_id"); err == nil && val != "" {
+				cfg.SafeHavenClientID = val
+			}
+
+			// Add other secret reads here as needed (stripe, paystack, flutterwave...)
+		}
 	}
 
 	return &cfg, nil
