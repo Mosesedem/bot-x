@@ -1,3 +1,0 @@
-build:
-  docker:
-    web: services/audit/Dockerfile

@@ -1,105 +1,93 @@
-# Deployment Guide: Heroku Container Registry
+# Deployment Guide: DigitalOcean
 
-The InstantF Bot-X microservices architecture has been updated with production-ready, minimal-attack-surface Dockerfiles (`gcr.io/distroless/static`) and `heroku.yml` manifests for each service. 
+The InstantF Bot-X microservices architecture is fully Dockerized using minimal-attack-surface `gcr.io/distroless/static` images. 
 
-Follow this guide to deploy the 10 microservices to Heroku using the Container Registry.
+Depending on your budget and scaling needs, there are two primary ways to deploy this on DigitalOcean: **DigitalOcean App Platform** (managed, easiest) or a **Docker Compose Droplet** (most cost-effective for 10 services).
 
 ## Prerequisites
-1. [Heroku CLI](https://devcenter.heroku.com/articles/heroku-cli) installed and authenticated (`heroku login`).
-2. Docker installed and running locally.
-3. A managed PostgreSQL database (e.g., Heroku Postgres, CockroachDB, Supabase).
-4. A managed Redis instance (e.g., Heroku Data for Redis, Upstash).
-5. A managed HashiCorp Vault instance (or HCP Vault Secrets) for production secrets management.
+1. [doctl CLI](https://docs.digitalocean.com/reference/doctl/how-to/install/) installed and authenticated (`doctl auth init`).
+2. Docker installed locally.
+3. Managed PostgreSQL and Redis clusters (DigitalOcean Managed Databases recommended).
+4. HashiCorp Vault instance for production secrets management.
 
-## 1. Create Heroku Apps
+---
 
-You need to create a separate Heroku app for each microservice. This ensures isolated scaling and crash boundaries.
+## Option 1: DigitalOcean App Platform (Recommended for Managed Scaling)
 
-```bash
-# Example: Create apps with a unique prefix
-PREFIX="instantf"
-heroku create $PREFIX-xgateway
-heroku create $PREFIX-giveaway
-heroku create $PREFIX-entry
-heroku create $PREFIX-payment-router
-heroku create $PREFIX-kyc
-heroku create $PREFIX-compliance
-heroku create $PREFIX-audit
-heroku create $PREFIX-notification
-heroku create $PREFIX-reconciliation
-heroku create $PREFIX-admin
+DigitalOcean App Platform is a Platform-as-a-Service (PaaS) similar to Heroku. You can deploy all 10 microservices within a single "App" using an App Spec, allowing them to communicate securely over internal routing.
+
+### 1. Create the App Spec (`do-app.yaml`)
+Create a file named `do-app.yaml` at the root of your project. This defines all your services, environment variables, and how they build from your Dockerfiles.
+
+```yaml
+name: instantf-bot-x
+region: lon1
+services:
+  # The publicly accessible webhook gateway
+  - name: xgateway
+    dockerfile_path: services/xgateway/Dockerfile
+    source_dir: .
+    http_port: 8080
+    envs:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        value: ${db.DATABASE_URL}
+      - key: GRPC_GIVEAWAY_ADDR
+        value: giveaway:50052  # Internal App Platform routing
+    routes:
+      - path: /
+
+  # Internal gRPC Microservice (No public routes)
+  - name: giveaway
+    dockerfile_path: services/giveaway/Dockerfile
+    source_dir: .
+    internal_ports: [50052]
+    envs:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        value: ${db.DATABASE_URL}
+
+  # Add definitions for entry, payment-router, kyc, compliance, audit, notification, reconciliation, admin
 ```
 
-## 2. Configure Environment Variables
-
-For each app, you must explicitly set the necessary environment variables via the Heroku Dashboard or CLI. 
-**Crucially, you must configure the gRPC addresses so the services can find each other over Heroku Private Networking/DNS.**
-
+### 2. Deploy the App
 ```bash
-# Example for setting shared variables across all apps
-for APP in xgateway giveaway entry payment-router kyc compliance audit notification reconciliation admin; do
-  heroku config:set \
-    APP_ENV=production \
-    DATABASE_URL="postgres://user:pass@host:5432/db?sslmode=verify-full" \
-    REDIS_URL="rediss://user:pass@host:6379" \
-    VAULT_ADDR="https://your-vault-instance.com" \
-    VAULT_TOKEN="your-prod-vault-token" \
-    -a $PREFIX-$APP
-done
+doctl apps create --spec do-app.yaml
 ```
 
-### gRPC Service Discovery
-Heroku exposes apps via HTTPS on port 443. Set the internal gRPC addresses for service-to-service communication:
+*Note: App Platform bills per component. Running 10 separate services can get expensive. If cost is a major concern, see Option 2.*
+
+---
+
+## Option 2: Docker Compose on a Dedicated Droplet (Most Cost-Effective)
+
+Since gRPC communication between 10 microservices is complex, running them on a single high-CPU Droplet via `docker-compose` is highly efficient and eliminates network latency between services.
+
+### 1. Provision a Droplet
+Create a new Droplet using the **Docker 1-Click App** from the DigitalOcean Marketplace (Ubuntu with Docker & Compose pre-installed). Recommend at least 4GB RAM / 2 CPUs.
+
+### 2. Update `docker-compose.yml` for Production
+The provided `docker-compose.yml` is mostly ready, but you should:
+1. Remove the local `postgres`, `redis`, and `vault` infrastructure blocks and replace their URLs with your Managed DigitalOcean Database connection strings.
+2. Ensure internal gRPC communication uses Docker's internal DNS network aliases (e.g., `GRPC_GIVEAWAY_ADDR=giveaway:50052`).
+
+### 3. Deploy
+1. SSH into your Droplet.
+2. Clone your repository.
+3. Create a `.env` file containing your production secrets (Vault tokens, Managed DB URLs).
+4. Build and start the services:
 
 ```bash
-# Set on all apps that need to communicate with others
-for APP in xgateway giveaway entry payment-router kyc compliance audit notification reconciliation admin; do
-  heroku config:set \
-    GRPC_GIVEAWAY_ADDR="$PREFIX-giveaway.herokuapp.com:443" \
-    GRPC_PAYMENT_ROUTER_ADDR="$PREFIX-payment-router.herokuapp.com:443" \
-    GRPC_KYC_ADDR="$PREFIX-kyc.herokuapp.com:443" \
-    GRPC_COMPLIANCE_ADDR="$PREFIX-compliance.herokuapp.com:443" \
-    GRPC_AUDIT_ADDR="$PREFIX-audit.herokuapp.com:443" \
-    GRPC_NOTIFICATION_ADDR="$PREFIX-notification.herokuapp.com:443" \
-    GRPC_RECONCILIATION_ADDR="$PREFIX-reconciliation.herokuapp.com:443" \
-    GRPC_ENTRY_ADDR="$PREFIX-entry.herokuapp.com:443" \
-    GRPC_XGATEWAY_ADDR="$PREFIX-xgateway.herokuapp.com:443" \
-    -a $PREFIX-$APP
-done
+docker compose -f docker-compose.yml up -d --build
 ```
 
-## 3. Deployment
+### 4. Reverse Proxy / SSL
+To expose the `xgateway` webhook securely, install Nginx or Caddy on the Droplet and set up a reverse proxy to route external port 443 (HTTPS) to the `xgateway` container's exposed port `8081`. 
 
-We use Heroku's Container Registry to push our multi-stage distroless Docker images.
+---
 
-1. **Log in to Container Registry:**
-   ```bash
-   heroku container:login
-   ```
-
-2. **Build and Push Each Service:**
-   Navigate to the root of the project and execute the build/push commands for each service, passing the specific Dockerfile path.
-
-   ```bash
-   # XGateway
-   heroku container:push web -a $PREFIX-xgateway --dockerfile services/xgateway/Dockerfile
-   heroku container:release web -a $PREFIX-xgateway
-
-   # Giveaway
-   heroku container:push web -a $PREFIX-giveaway --dockerfile services/giveaway/Dockerfile
-   heroku container:release web -a $PREFIX-giveaway
-   
-   # Repeat for entry, payment-router, kyc, compliance, audit, notification, reconciliation, admin
-   ```
-
-## 4. Run Database Migrations
-Migrations should be run once against the production database before scaling up the dynos.
-
-```bash
-# Assuming you have golang-migrate installed locally
-migrate -path migrations -database "postgres://user:pass@host:5432/db?sslmode=verify-full" up
-```
-
-## 5. Security Notes
-- **Distroless Images:** The images use `gcr.io/distroless/static:nonroot`. They do not contain a shell (`/bin/sh` or `/bin/bash`). You cannot use `heroku run bash`. This significantly hardens the containers against remote code execution.
+## Security Notes
+- **Distroless Images:** The images use `gcr.io/distroless/static:nonroot`. They do not contain a shell (`/bin/sh` or `/bin/bash`). You cannot use `docker exec -it <container> sh`. This significantly hardens the containers against remote code execution.
 - **Fail-Closed Private Keys:** The `payment-router`, `reconciliation`, and `kyc` services will intentionally crash on boot if they cannot read the SafeHaven private key from Vault or the file system in production. Ensure Vault is correctly seeded before deploying these services.
