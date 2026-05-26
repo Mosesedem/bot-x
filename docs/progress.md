@@ -32,6 +32,39 @@ Recently completed changes improve local developer experience and production saf
 - [ ] **Migrations automation**: Wire `/migrations` into local startup (Makefile or a compose init job) so Postgres is seeded automatically when spinning up `docker-compose`.
 - [ ] **Migrations automation**: Wire `/migrations` into local startup (Makefile or a compose init job) so Postgres is seeded automatically when spinning up `docker-compose`.
 - [Phase 2 started] Database schema updated for monetary storage: initial migration changed monetary column types to `BIGINT` for fresh installs and a conversion migration `000003_migrate_amounts_to_bigint.up.sql` was added to convert existing `NUMERIC(12,2)` values to integer lowest-denomination values (multiplies by 100).
+## Phase 2: Monetary storage migration (in-progress → mostly complete)
+
+Status: major code + proto changes applied, generated code regenerated, repo sweep completed.
+
+Summary of work completed in Phase 2:
+- Updated database migrations for fresh installs to use `BIGINT` for monetary columns (e.g., `total_budget`, `amount_per_winner`, `giveaway_winners.amount`).
+- Added conversion migration `migrations/000003_migrate_amounts_to_bigint.up.sql` to migrate existing `NUMERIC(12,2)` values to lowest-denomination integers (multiply by 100).
+- Converted Protobuf definitions to use `int64` for monetary fields in `/proto/*/v1/*.proto` and regenerated Go code via `make proto` (updated `gen/go`).
+- Swept service code and gateway client structs to use `int64` cents at the DB and RPC boundaries. HTTP endpoints that are public-facing still emit major-unit floats for human-friendly consumption.
+- Updated gateways and Safe Haven / Paystack / Flutterwave client structs to encode/decode amounts as integer cents where the external API expects cents. Where external APIs expect floats, adapter code is in place to convert as needed.
+
+Migration checklist (suggested order for staging/production rollout):
+1. Backup your database. Example:
+
+```bash
+pg_dump "$DATABASE_URL" > backup-before-amount-migration.sql
+```
+
+2. Deploy server code that understands both numeric and integer DB values (compat layer) — optional but safer for blue/green.
+3. Run `migrations/000003_migrate_amounts_to_bigint.up.sql` in staging and validate amounts (spot-check totals and a few rows).
+4. Deploy services with the new protobufs (ensure `gen/go` is up-to-date) and run smoke tests: create giveaway → fund escrow → draw winners → payout.
+5. Run reconciliation checks and verify `TotalDisbursed` sums match expected values (be mindful of rounding rules applied during conversion).
+6. After successful staging validation, schedule a maintenance window for production, repeat steps 1–5.
+
+Notes & risks:
+- The conversion multiplies stored decimals by 100 and rounds half-up. This may change some historical totals if previous data used fractional sub-cent values — validate before applying to production.
+- External gateway contracts must be reviewed: some gateways accept amounts in cents (preferred), others expect floats. Adapters have been added in `shared/gateways/*` but please verify with each provider.
+- We updated `shared/nlp/commandparser` to return integer cents to reduce downstream conversion errors.
+
+Next actions remaining for Phase 2:
+- Automate migrations as part of startup/deploy manifests (Makefile / init container).
+- Run integration tests against a staging environment seeded with converted data.
+- Update deployment docs and CI workflows to include `make proto` and migration checks.
 - [ ] **End-to-end integration tests**: Create integration tests that exercise webhooks → `xgateway` → DB → Asynq worker flows.
 - [ ] **Webhook registration automation & docs**: Add scripts/docs to register the X/Twitter webhook (CRC flow) and instructions for producing `X_CONSUMER_SECRET` and `X_BEARER_TOKEN` values.
 - [ ] **Expand CI/CD**: Extend the CI workflow to build Docker images, run database migrations in CI test jobs, and add releases/builds for staging/prod deploys.
