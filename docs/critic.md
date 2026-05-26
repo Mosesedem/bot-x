@@ -66,6 +66,18 @@ The InstantF Bot-X project is a distributed microservices architecture designed 
 ### Monetary Amounts Storage
 
 _Status update:_ Began Phase 2: the base migration has been updated to use `BIGINT` for `total_budget`, `amount_per_winner`, and `amount` for fresh installs, and a new conversion migration (`migrations/000003_migrate_amounts_to_bigint.up.sql`) was added to convert existing `NUMERIC(12,2)` values to integer lowest-denomination values. Next steps: update DB access code (scans/queries) to use integer types and update protobufs or marshalling layers to represent amounts consistently across services.
+_Status update:_ Phase 2 progressed significantly: Protobufs were converted to `int64` amounts, `gen/go` was regenerated, and a repository-wide sweep converted gateway structs and service call sites to use integer-cent amounts at DB and RPC boundaries. Fresh-install migrations now use `BIGINT`; a conversion migration exists to transform existing `NUMERIC(12,2)` data.
+
+### What changed (impact summary)
+
+- All monetary fields in protobufs now use `int64` representing the lowest denomination (cents/kobo). This reduces floating-point rounding errors and simplifies financial correctness across services.
+- Database columns for money are `BIGINT`. Code reads/writes cents and converts to human-friendly floats only at public HTTP boundaries.
+
+### Remaining risks & action items
+
+- Ensure all external gateway integrations are verified against their expected input format: some expect cents (preferred), others floats — adapters were added but must be validated with live sandbox credentials.
+- Run end-to-end integration and reconciliation tests in staging with a copy of production data to confirm no rounding/regression issues.
+- Add migration automation and deployment checks to avoid manual errors during production migration.
 
 ### Database Migrations
 
