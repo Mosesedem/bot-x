@@ -5,9 +5,9 @@ go 1.23
 require (
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/jackc/pgx/v5 v5.6.0
 	github.com/mosesedem/bot-x/gen/go v0.0.0-00010101000000-000000000000
 	github.com/mosesedem/bot-x/shared v0.0.0
-	github.com/jackc/pgx/v5 v5.6.0
 	go.uber.org/zap v1.21.0
 	google.golang.org/grpc v1.64.0
 )
@@ -36,6 +36,7 @@ require (
 	github.com/spf13/cast v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.19.0 // indirect
+	github.com/stripe/stripe-go/v78 v78.12.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect

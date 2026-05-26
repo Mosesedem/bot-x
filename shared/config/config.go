@@ -72,7 +72,7 @@ func Load() (*Config, error) {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	// Set Defaults
-	viper.SetDefault("APP_ENV", "development")
+	viper.SetDefault("APP_ENV", "production")
 	viper.SetDefault("LOG_LEVEL", "info")
 	viper.SetDefault("BASE_URL", "http://localhost:8080")
 	// DATABASE_URL must be set explicitly via environment — no hardcoded default
@@ -81,7 +81,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("CLICKHOUSE_DB", "instantf_audit")
 	viper.SetDefault("VAULT_ADDR", "http://localhost:8200")
 	// VAULT_TOKEN must be set explicitly — no default token in production
-	viper.SetDefault("X_WEBHOOK_ENV", "dev")
+	viper.SetDefault("X_WEBHOOK_ENV", "production")
 	viper.SetDefault("BOT_TWITTER_HANDLE", "instantf_bot")
 	viper.SetDefault("SAFEHAVEN_BASE_URL", "https://api.safehavenmfb.com")
 	viper.SetDefault("CRYPTO_CHAIN_ID", 8453)

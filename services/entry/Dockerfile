@@ -4,6 +4,7 @@ WORKDIR /app
 COPY . .
 
 WORKDIR /app/services/entry
+ENV GOWORK=off
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/service ./cmd/main.go
 
 FROM gcr.io/distroless/static:nonroot

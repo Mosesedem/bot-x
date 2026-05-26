@@ -768,14 +768,14 @@ grep -A 3 "SAFEHAVEN_PRIVATE_KEY_PEM" .env
 
 Use this before going live:
 
-- [ ] CockroachDB cluster created with `botx_user` and `instantf_bot_x` database
-- [ ] Valkey cluster provisioned on DigitalOcean
-- [ ] Droplet created from Docker Marketplace image (4GB RAM+)
-- [ ] SSH access confirmed
-- [ ] Repository cloned to `/opt/bot-x`
-- [ ] `.env` file created with all secrets, permissions set to `600`
-- [ ] `docker-compose.yml` updated — local infra services removed
-- [ ] `docker compose up -d --build` completed with all 10 services `Up`
+- [x] CockroachDB cluster created with `botx_user` and `instantf_bot_x` database
+- [x] Valkey cluster provisioned on DigitalOcean
+- [x] Droplet created from Docker Marketplace image (4GB RAM+)
+- [x] SSH access confirmed
+- [x] Repository cloned to `/opt/bot-x`
+- [x] `.env` file created with all secrets, permissions set to `600`
+- [x] `docker-compose.yml` updated — local infra services removed
+- [x] `docker compose up -d --build` completed with all 10 services `Up`
 - [ ] DNS A record pointing to Droplet IP
 - [ ] Nginx installed and config tested (`nginx -t`)
 - [ ] SSL certificate issued via Certbot
