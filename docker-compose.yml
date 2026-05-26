@@ -1,32 +1,5 @@
 services:
   # ── Infrastructure ──
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: botx
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
 
   clickhouse:
     image: clickhouse/clickhouse-server:24.3
@@ -47,23 +20,13 @@ services:
 
   migrate:
     image: migrate/migrate:v4.17.1
-    depends_on:
-      postgres:
-        condition: service_healthy
     env_file:
       - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@postgres:5432/botx?sslmode=disable}
+      DATABASE_URL: "${DATABASE_URL}"
     volumes:
       - ./migrations:/migrations:ro
-    command:
-      [
-        "-path",
-        "/migrations",
-        "-database",
-        "${DATABASE_URL:-postgres://postgres:postgres@postgres:5432/botx?sslmode=disable}",
-        "up",
-      ]
+    command: ["-path", "/migrations", "-database", "${DATABASE_URL}", "up"]
     restart: "no"
 
   # ── Microservices ──
@@ -79,10 +42,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
   giveaway:
     build:
@@ -96,10 +55,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
   entry:
     build:
@@ -113,10 +68,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
   payment-router:
     build:
@@ -130,10 +81,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
   kyc:
     build:
@@ -147,10 +94,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
   compliance:
     build:
@@ -164,10 +107,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
   audit:
     build:
@@ -206,10 +145,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
   admin:
     build:
@@ -222,12 +157,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
 volumes:
-  postgres_data:
-  redis_data:
   clickhouse_data:
