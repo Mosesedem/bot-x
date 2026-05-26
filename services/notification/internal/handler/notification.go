@@ -29,10 +29,10 @@ func (h *NotificationHandler) SendGiveawayConfirmationDM(ctx context.Context, re
 			"Account Number: %s\n"+
 			"Account Name: %s\n\n"+
 			"Reply YES to confirm or NO to cancel. Pool expires in 2 hours.",
-		req.Currency, req.AmountPerWinner*float64(req.WinnerCount),
-		req.WinnerCount, req.Currency, req.AmountPerWinner,
+		req.Currency, float64(req.AmountPerWinner*int64(req.WinnerCount))/100.0,
+		req.WinnerCount, req.Currency, float64(req.AmountPerWinner)/100.0,
 		req.EntryRule,
-		req.Currency, req.TotalToFund,
+		req.Currency, float64(req.TotalToFund)/100.0,
 		req.BankName, req.VirtualAccountNumber, req.AccountName,
 	)
 
@@ -55,8 +55,8 @@ func (h *NotificationHandler) SendActivationReply(ctx context.Context, req *pb.A
 		"🎉 Giveaway is LIVE! Reply to enter.\n"+
 			"Prize pool: %s%.2f (%d winners × %s%.2f).\n"+
 			"Closes: %s.",
-		req.Currency, req.AmountPerWinner*float64(req.WinnerCount),
-		req.WinnerCount, req.Currency, req.AmountPerWinner,
+		req.Currency, float64(req.AmountPerWinner*int64(req.WinnerCount))/100.0,
+		req.WinnerCount, req.Currency, float64(req.AmountPerWinner)/100.0,
 		req.DeadlineDescription,
 	)
 
@@ -81,7 +81,7 @@ func (h *NotificationHandler) SendWinnerDM(ctx context.Context, req *pb.WinnerDM
 			"Bank Name: <Your Bank Name>\n"+
 			"Account Number: <Your Account Number>\n"+
 			"Account Name: <Your Account Name>",
-		req.Currency, req.Amount, req.HostHandle,
+		req.Currency, float64(req.Amount)/100.0, req.HostHandle,
 	)
 
 	resp, err := h.xGatewayClient.SendDM(ctx, &pbX.SendDMRequest{
@@ -101,7 +101,7 @@ func (h *NotificationHandler) SendWinnerDM(ctx context.Context, req *pb.WinnerDM
 func (h *NotificationHandler) SendPayoutSuccessDM(ctx context.Context, req *pb.PayoutSuccessDMRequest) (*pb.NotificationResponse, error) {
 	msg := fmt.Sprintf(
 		"✅ %s%.2f has been successfully paid to your %s account ending in %s.",
-		req.Currency, req.Amount, req.BankName, req.BankLast4,
+		req.Currency, float64(req.Amount)/100.0, req.BankName, req.BankLast4,
 	)
 
 	resp, err := h.xGatewayClient.SendDM(ctx, &pbX.SendDMRequest{
@@ -126,7 +126,7 @@ func (h *NotificationHandler) SendPayoutFailedDM(ctx context.Context, req *pb.Pa
 			"Bank Name: <Correct Bank Name>\n"+
 			"Account Number: <Correct Account Number>\n"+
 			"Account Name: <Correct Account Name>",
-		req.Currency, req.Amount, req.Reason,
+		req.Currency, float64(req.Amount)/100.0, req.Reason,
 	)
 
 	resp, err := h.xGatewayClient.SendDM(ctx, &pbX.SendDMRequest{
@@ -151,7 +151,7 @@ func (h *NotificationHandler) SendHostCompletionDM(ctx context.Context, req *pb.
 			"- Paid successfully: %d\n"+
 			"- Failed payouts: %d\n"+
 			"- Total disbursed: %s%.2f",
-		req.GiveawayId, req.TotalWinners, req.PaidCount, req.FailedCount, req.Currency, req.TotalDisbursed,
+		req.GiveawayId, req.TotalWinners, req.PaidCount, req.FailedCount, req.Currency, float64(req.TotalDisbursed)/100.0,
 	)
 
 	resp, err := h.xGatewayClient.SendDM(ctx, &pbX.SendDMRequest{
@@ -173,7 +173,7 @@ func (h *NotificationHandler) SendKYCRequestDM(ctx context.Context, req *pb.KYCR
 		"⚠️ Verification required!\n\n"+
 			"To claim your prize of %s%.2f, please complete identity verification using the link below:\n"+
 			"%s",
-		req.Currency, req.Amount, req.KycLink,
+		req.Currency, float64(req.Amount)/100.0, req.KycLink,
 	)
 
 	resp, err := h.xGatewayClient.SendDM(ctx, &pbX.SendDMRequest{

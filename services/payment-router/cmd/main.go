@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -16,7 +17,9 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/mosesedem/bot-x/shared/config"
 	"github.com/mosesedem/bot-x/shared/database"
+	"github.com/mosesedem/bot-x/shared/gateways/crypto"
 	"github.com/mosesedem/bot-x/shared/gateways/safehaven"
+	botxstripe "github.com/mosesedem/bot-x/shared/gateways/stripe"
 	"github.com/mosesedem/bot-x/shared/grpcdial"
 	"github.com/mosesedem/bot-x/shared/vault"
 	"go.uber.org/zap"
@@ -81,6 +84,22 @@ func main() {
 		PrivateKey:   privKey,
 	})
 
+	// Initialize Stripe Client
+	var stripeClient *botxstripe.Client
+	if cfg.StripeSecretKey != "" {
+		stripeClient = botxstripe.New(cfg.StripeSecretKey)
+	} else {
+		logger.Warn("Stripe configuration is missing; Stripe gateway will be disabled.")
+	}
+
+	// Initialize Crypto Client
+	var cryptoClient *crypto.Client
+	if cfg.CryptoRPCURL != "" {
+		cryptoClient = crypto.New(cfg.CryptoRPCURL, cfg.CryptoChainID)
+	} else {
+		logger.Warn("Crypto RPC URL is missing; Crypto gateway will be disabled.")
+	}
+
 	// ── Start gRPC Server ──
 	parts := strings.Split(cfg.GRPCPaymentRouterAddr, ":")
 	grpcPort := ":" + parts[len(parts)-1]
@@ -91,7 +110,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	paymentRouterSvc := router.NewPaymentRouter(pool, shClient, complianceClient, auditClient, giveawayClient, "")
+	paymentRouterSvc := router.NewPaymentRouter(pool, shClient, stripeClient, cryptoClient, complianceClient, auditClient, giveawayClient)
 	pb.RegisterPaymentRouterServiceServer(grpcServer, paymentRouterSvc)
 
 	go func() {
@@ -158,6 +177,16 @@ func dialService(addr, name string, logger *zap.Logger) *grpc.ClientConn {
 }
 
 func loadPrivateKey(cfg *config.Config, logger *zap.Logger) (*rsa.PrivateKey, error) {
+	// Try loading directly from PEM environment variable (easiest for Vault-less setups)
+	if cfg.SafeHavenPrivateKeyPEM != "" {
+		keyStr := strings.ReplaceAll(cfg.SafeHavenPrivateKeyPEM, "\\n", "\n") // Handle escaped newlines
+		key, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(keyStr))
+		if err == nil {
+			return key, nil
+		}
+		logger.Warn("failed to parse private key from SAFEHAVEN_PRIVATE_KEY_PEM env var", zap.Error(err))
+	}
+
 	// Try loading from file first
 	if cfg.SafeHavenPrivateKeyPath != "" {
 		keyBytes, err := os.ReadFile(cfg.SafeHavenPrivateKeyPath)
@@ -193,7 +222,11 @@ func loadPrivateKey(cfg *config.Config, logger *zap.Logger) (*rsa.PrivateKey, er
 		}
 	}
 
-	// Fallback to generating a dummy private key for local development
-	logger.Warn("no Safe Haven private key configured, generating a temporary dummy key for dev purposes")
+	// Fallback: generate a temporary dummy key for local development only.
+	// In production this must never be reached.
+	if cfg.AppEnv == "production" {
+		return nil, fmt.Errorf("no Safe Haven private key configured; set SAFEHAVEN_PRIVATE_KEY_PATH or store the key in Vault at secret/safehaven/private_key")
+	}
+	logger.Warn("no Safe Haven private key configured, generating a temporary dummy key for local development")
 	return rsa.GenerateKey(rand.Reader, 2048)
 }

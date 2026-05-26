@@ -47,20 +47,26 @@ services:
       timeout: 5s
       retries: 5
 
-  vault:
-    image: hashicorp/vault:1.16
-    ports:
-      - "8200:8200"
+  migrate:
+    image: migrate/migrate:v4.17.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
     environment:
-      - VAULT_DEV_ROOT_TOKEN_ID=dev-root-token
-      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
-    cap_add:
-      - IPC_LOCK
-    healthcheck:
-      test: ["CMD", "vault", "status"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
+      DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@postgres:5432/botx?sslmode=disable}
+    volumes:
+      - ./migrations:/migrations:ro
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "${DATABASE_URL:-postgres://postgres:postgres@postgres:5432/botx?sslmode=disable}",
+        "up",
+      ]
+    restart: "no"
 
   # ── Microservices ──
   xgateway:
@@ -73,11 +79,11 @@ services:
     env_file:
       - .env
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      vault:
         condition: service_healthy
 
   giveaway:
@@ -90,11 +96,11 @@ services:
     env_file:
       - .env
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      vault:
         condition: service_healthy
 
   entry:
@@ -107,11 +113,11 @@ services:
     env_file:
       - .env
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      vault:
         condition: service_healthy
 
   payment-router:
@@ -124,11 +130,11 @@ services:
     env_file:
       - .env
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      vault:
         condition: service_healthy
 
   kyc:
@@ -141,11 +147,11 @@ services:
     env_file:
       - .env
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      vault:
         condition: service_healthy
 
   compliance:
@@ -158,11 +164,11 @@ services:
     env_file:
       - .env
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      vault:
         condition: service_healthy
 
   audit:
@@ -177,8 +183,6 @@ services:
     depends_on:
       clickhouse:
         condition: service_healthy
-      vault:
-        condition: service_healthy
 
   notification:
     build:
@@ -190,8 +194,6 @@ services:
     env_file:
       - .env
     depends_on:
-      vault:
-        condition: service_healthy
 
   reconciliation:
     build:
@@ -203,11 +205,11 @@ services:
     env_file:
       - .env
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      vault:
         condition: service_healthy
 
   admin:
@@ -219,11 +221,11 @@ services:
     env_file:
       - .env
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      vault:
         condition: service_healthy
 
 volumes:

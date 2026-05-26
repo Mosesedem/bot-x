@@ -123,13 +123,17 @@ func Run() {
 		_, _ = w.Write([]byte(`{"status":"ready"}`))
 	})
 
+	httpPort := os.Getenv("PORT")
+	if httpPort == "" {
+		httpPort = "8080"
+	}
 	httpServer := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + httpPort,
 		Handler: r,
 	}
 
 	go func() {
-		logger.Info("starting HTTP webhook server", zap.String("port", ":8080"))
+		logger.Info("starting HTTP webhook server", zap.String("port", httpPort))
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("failed to serve HTTP", zap.Error(err))
 		}

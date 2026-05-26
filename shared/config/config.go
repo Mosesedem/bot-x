@@ -33,6 +33,7 @@ type Config struct {
 	SafeHavenClientID             string  `mapstructure:"SAFEHAVEN_CLIENT_ID"`
 	SafeHavenClientSecret         string  `mapstructure:"SAFEHAVEN_CLIENT_SECRET"`
 	SafeHavenPrivateKeyPath       string  `mapstructure:"SAFEHAVEN_PRIVATE_KEY_PATH"`
+	SafeHavenPrivateKeyPEM        string  `mapstructure:"SAFEHAVEN_PRIVATE_KEY_PEM"`
 	FlutterwaveSecretKey          string  `mapstructure:"FLUTTERWAVE_SECRET_KEY"`
 	FlutterwaveHashSecret         string  `mapstructure:"FLUTTERWAVE_HASH_SECRET"`
 	PaystackSecretKey             string  `mapstructure:"PAYSTACK_SECRET_KEY"`
@@ -74,12 +75,12 @@ func Load() (*Config, error) {
 	viper.SetDefault("APP_ENV", "development")
 	viper.SetDefault("LOG_LEVEL", "info")
 	viper.SetDefault("BASE_URL", "http://localhost:8080")
-	viper.SetDefault("DATABASE_URL", "postgresql://moses:NDnjNOsayOaJ4lqkSdNppA@general-16173.jxf.gcp-europe-west3.cockroachlabs.cloud:26257/instant-tf?sslmode=verify-full")
+	// DATABASE_URL must be set explicitly via environment — no hardcoded default
 	viper.SetDefault("REDIS_URL", "redis://localhost:6379")
 	viper.SetDefault("CLICKHOUSE_URL", "clickhouse://localhost:9000")
 	viper.SetDefault("CLICKHOUSE_DB", "instantf_audit")
 	viper.SetDefault("VAULT_ADDR", "http://localhost:8200")
-	viper.SetDefault("VAULT_TOKEN", "dev-root-token")
+	// VAULT_TOKEN must be set explicitly — no default token in production
 	viper.SetDefault("X_WEBHOOK_ENV", "dev")
 	viper.SetDefault("BOT_TWITTER_HANDLE", "instantf_bot")
 	viper.SetDefault("SAFEHAVEN_BASE_URL", "https://api.safehavenmfb.com")
@@ -87,6 +88,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("CRYPTO_TREASURY_VAULT_PATH", "secret/crypto/treasury")
 	viper.SetDefault("ADMIN_DUAL_APPROVAL_THRESHOLD_NGN", 500000.0)
 	viper.SetDefault("ADMIN_DUAL_APPROVAL_THRESHOLD_USD", 1000.0)
+	// gRPC service addresses — must be explicitly configured per environment
 	viper.SetDefault("GRPC_XGATEWAY_ADDR", "localhost:50051")
 	viper.SetDefault("GRPC_GIVEAWAY_ADDR", "localhost:50052")
 	viper.SetDefault("GRPC_ENTRY_ADDR", "localhost:50053")

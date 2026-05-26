@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -84,6 +85,16 @@ func main() {
 }
 
 func loadPrivateKey(cfg *config.Config, logger *zap.Logger) (*rsa.PrivateKey, error) {
+	// Try loading directly from PEM environment variable (easiest for Vault-less setups)
+	if cfg.SafeHavenPrivateKeyPEM != "" {
+		keyStr := strings.ReplaceAll(cfg.SafeHavenPrivateKeyPEM, "\\n", "\n") // Handle escaped newlines
+		key, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(keyStr))
+		if err == nil {
+			return key, nil
+		}
+		logger.Warn("failed to parse private key from SAFEHAVEN_PRIVATE_KEY_PEM env var", zap.Error(err))
+	}
+
 	// Try loading from file first
 	if cfg.SafeHavenPrivateKeyPath != "" {
 		keyBytes, err := os.ReadFile(cfg.SafeHavenPrivateKeyPath)
@@ -119,7 +130,11 @@ func loadPrivateKey(cfg *config.Config, logger *zap.Logger) (*rsa.PrivateKey, er
 		}
 	}
 
-	// Fallback to generating a dummy private key for local development
-	logger.Warn("no Safe Haven private key configured, generating a temporary dummy key for dev purposes")
+	// Fallback: generate a temporary dummy key for local development only.
+	// In production this must never be reached.
+	if cfg.AppEnv == "production" {
+		return nil, fmt.Errorf("no Safe Haven private key configured; set SAFEHAVEN_PRIVATE_KEY_PATH or store the key in Vault at secret/safehaven/private_key")
+	}
+	logger.Warn("no Safe Haven private key configured, generating a temporary dummy key for local development")
 	return rsa.GenerateKey(rand.Reader, 2048)
 }
