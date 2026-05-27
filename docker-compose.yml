@@ -40,15 +40,17 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:24.3-alpine
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      CLICKHOUSE_DB: instantf_audit
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+      CLICKHOUSE_PASSWORD: ""
     volumes:
       - clickhouse_data:/var/lib/clickhouse
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:8123:8123"
     healthcheck:
-      test: ["CMD-SHELL", "clickhouse-client --password \"$CLICKHOUSE_PASSWORD\" --query 'SELECT 1'"]
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
       interval: 10s
       timeout: 10s
       retries: 15
@@ -69,11 +71,9 @@ services:
 
   migrate_clickhouse:
     image: migrate/migrate:v4.17.1
-    env_file:
-      - .env
     volumes:
       - ./migrations/clickhouse:/migrations:ro
-    command: ["-path", "/migrations", "-database", "clickhouse://default:${CLICKHOUSE_PASSWORD}@clickhouse:9000?x-multi-statement=true", "up"]
+    command: ["-path", "/migrations", "-database", "clickhouse://default@clickhouse:9000/instantf_audit?x-multi-statement=true", "up"]
     depends_on:
       clickhouse:
         condition: service_healthy
