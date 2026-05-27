@@ -43,8 +43,20 @@ services:
     env_file:
       - .env
     volumes:
-      - ./migrations:/migrations:ro
+      - ./migrations/cockroach:/migrations:ro
     command: ["-path", "/migrations", "-database", "${DATABASE_URL}", "up"]
+    restart: "no"
+
+  migrate_clickhouse:
+    image: migrate/migrate:v4.17.1
+    env_file:
+      - .env
+    volumes:
+      - ./migrations/clickhouse:/migrations:ro
+    command: ["-path", "/migrations", "-database", "clickhouse://default:${CLICKHOUSE_PASSWORD}@clickhouse:9000?x-multi-statement=true", "up"]
+    depends_on:
+      clickhouse:
+        condition: service_healthy
     restart: "no"
 
   # ── Microservices ────────────────────────────────────────
@@ -144,6 +156,8 @@ services:
       - "8087:8080"
       - "50057:50057"
     depends_on:
+      migrate_clickhouse:
+        condition: service_completed_successfully
       clickhouse:
         condition: service_healthy
 
