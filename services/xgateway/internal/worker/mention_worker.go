@@ -2,30 +2,37 @@ package worker
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	pbAudit "github.com/mosesedem/bot-x/gen/go/audit/v1"
 	pbEntry "github.com/mosesedem/bot-x/gen/go/entry/v1"
 	pbGiveaway "github.com/mosesedem/bot-x/gen/go/giveaway/v1"
 	pbNotification "github.com/mosesedem/bot-x/gen/go/notification/v1"
 	pbPayment "github.com/mosesedem/bot-x/gen/go/payment/v1"
 	"github.com/mosesedem/bot-x/shared/config"
+	"github.com/mosesedem/bot-x/shared/gateways/xapi"
 	"github.com/mosesedem/bot-x/shared/nlp/commandparser"
 	"go.uber.org/zap"
 )
 
 type EventWorker struct {
 	db                 *pgxpool.Pool
+	redis              *redis.Client
 	giveawayClient     pbGiveaway.GiveawayServiceClient
 	paymentClient      pbPayment.PaymentRouterServiceClient
 	notificationClient pbNotification.NotificationServiceClient
 	entryClient        pbEntry.EntryServiceClient
 	auditClient        pbAudit.AuditServiceClient
+	xClient            *xapi.Client
 	parser             *commandparser.Parser
 	logger             *zap.Logger
 	cfg                *config.Config
@@ -33,21 +40,25 @@ type EventWorker struct {
 
 func NewEventWorker(
 	db *pgxpool.Pool,
+	redis *redis.Client,
 	giveawayClient pbGiveaway.GiveawayServiceClient,
 	paymentClient pbPayment.PaymentRouterServiceClient,
 	notificationClient pbNotification.NotificationServiceClient,
 	entryClient pbEntry.EntryServiceClient,
 	auditClient pbAudit.AuditServiceClient,
+	xClient *xapi.Client,
 	logger *zap.Logger,
 	cfg *config.Config,
 ) *EventWorker {
 	return &EventWorker{
 		db:                 db,
+		redis:              redis,
 		giveawayClient:     giveawayClient,
 		paymentClient:      paymentClient,
 		notificationClient: notificationClient,
 		entryClient:        entryClient,
 		auditClient:        auditClient,
+		xClient:            xClient,
 		parser:             commandparser.New(),
 		logger:             logger,
 		cfg:                cfg,
@@ -74,6 +85,19 @@ type XWebhookEventWrapper struct {
 
 func (w *EventWorker) ProcessTask(ctx context.Context, t *asynq.Task) error {
 	w.logger.Info("processing X webhook event from task queue")
+
+	// Idempotency check: hash the payload and check if we've processed it
+	payloadHash := hashPayload(t.Payload())
+	processedKey := fmt.Sprintf("webhook:processed:%s", payloadHash)
+	
+	// Try to set the key with NX (only if not exists) and 24h TTL
+	set, err := w.redis.SetNX(ctx, processedKey, time.Now().Unix(), 24*time.Hour).Result()
+	if err != nil {
+		w.logger.Warn("redis idempotency check failed, proceeding anyway", zap.Error(err))
+	} else if !set {
+		w.logger.Info("skipping duplicate webhook event", zap.String("hash", payloadHash))
+		return nil // Already processed, skip silently
+	}
 
 	var wrapper XWebhookEventWrapper
 	if err := json.Unmarshal(t.Payload(), &wrapper); err != nil {
@@ -190,6 +214,7 @@ func (w *EventWorker) handleDM(ctx context.Context, senderID, text string) error
 		if textLower == "yes" {
 			// Acknowledge YES, remind host to make the transfer
 			w.logger.Info("host confirmed giveaway via DM", zap.String("giveaway_id", draftID))
+			_, _ = w.xClient.SendDM(ctx, senderID, "✅ Confirmed! Please make the transfer to the provided account details to activate the giveaway. It will go live automatically once funds are received.")
 			return nil // Escrow inflow webhook will activate the giveaway when funds arrive
 		} else if textLower == "no" {
 			w.logger.Info("host cancelled giveaway via DM", zap.String("giveaway_id", draftID))
@@ -197,6 +222,9 @@ func (w *EventWorker) handleDM(ctx context.Context, senderID, text string) error
 				Id:     draftID,
 				Reason: "Cancelled by host request via DM",
 			})
+			if err == nil {
+				_, _ = w.xClient.SendDM(ctx, senderID, "🚫 Giveaway cancelled successfully.")
+			}
 			return err
 		}
 	}
@@ -229,6 +257,9 @@ func (w *EventWorker) handleDM(ctx context.Context, senderID, text string) error
 			if err != nil {
 				return fmt.Errorf("failed to save winner bank details: %w", err)
 			}
+
+			// Send acknowledgement DM
+			_, _ = w.xClient.SendDM(ctx, senderID, "✅ Bank details received! Processing your payout now.")
 
 			// Retrieve host jurisdiction
 			var jur string
@@ -319,5 +350,32 @@ func (w *EventWorker) mapBankCode(bankName string) string {
 	if strings.Contains(bn, "sterling") {
 		return "232"
 	}
-	return "011" // default to First Bank
+	if strings.Contains(bn, "keystone") {
+		return "082"
+	}
+	if strings.Contains(bn, "unity") {
+		return "215"
+	}
+	if strings.Contains(bn, "jaiz") {
+		return "301"
+	}
+	if strings.Contains(bn, "kuda") {
+		return "50257"
+	}
+	if strings.Contains(bn, "opay") {
+		return "999992"
+	}
+	if strings.Contains(bn, "palmpay") {
+		return "999991"
+	}
+	if strings.Contains(bn, "moniepoint") {
+		return "999990"
+	}
+	return "035" // default to Wema (more fintech-friendly)
+}
+
+// hashPayload creates a SHA256 hash of the payload for idempotency checking
+func hashPayload(payload []byte) string {
+	hash := sha256.Sum256(payload)
+	return hex.EncodeToString(hash[:])
 }

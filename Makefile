@@ -58,7 +58,39 @@ build:
 		go build -o bin/$$svc ./services/$$svc/cmd/; \
 	done
 
+# ── Digital Ocean Droplet Deployment ─────────────────────
+
+deploy-prod:
+	./scripts/deploy.sh production
+
+deploy-staging:
+	./scripts/deploy.sh staging
+
+# ── Production Infrastructure Management ─────────────────
+
+prod-up:
+	docker compose up -d
+
+prod-down:
+	docker compose down
+
+prod-logs:
+	docker compose logs -f
+
+prod-ps:
+	docker compose ps
+
+prod-migrate:
+	docker compose run --rm migrate
+
+prod-backup:
+	@echo "Creating database backup..."
+	docker compose exec postgres pg_dump -U botx instantf_bot_x > backup-$$(date +%Y%m%d-%H%M%S).sql
+
+# ── Heroku (Deprecated - use DO Droplet instead) ─────────
+
 heroku-deploy:
+	@echo "WARNING: Heroku deployment is deprecated. Use 'make deploy-prod' for Digital Ocean."
 	@if [ -z "$(app)" ] || [ -z "$(service)" ]; then \
 		echo "Usage: make heroku-deploy app=<heroku-app> service=<service-name>"; \
 		exit 1; \

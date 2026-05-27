@@ -333,7 +333,7 @@ func (r *PaymentRouter) RoutePayment(ctx context.Context, req *pb.RoutePaymentRe
 		}
 
 		tf, err := r.shClient.Transfer(ctx, safehaven.TransferRequest{
-			NameEnquiryReference: "ne-ref-" + req.WinnerId,
+			NameEnquiryReference: ne.NameEnquiryReference,
 			DebitAccountNumber:   fundingAccount, // Dynamically use the escrow virtual account
 			BeneficiaryBank:      req.BankCode,
 			BeneficiaryAccount:   req.PayoutDestination,
@@ -350,20 +350,20 @@ func (r *PaymentRouter) RoutePayment(ctx context.Context, req *pb.RoutePaymentRe
 			}, nil
 		}
 
-		_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET gateway_used = 'safehaven', gateway_reference = $1, payout_initiated_at = $2 WHERE id = $3", tf.Reference, time.Now(), req.WinnerId)
+		_, _ = r.db.Exec(ctx, "UPDATE giveaway_winners SET gateway_used = 'safehaven', gateway_reference = $1, payout_initiated_at = $2 WHERE id = $3", tf.SessionID, time.Now(), req.WinnerId)
 
 		_, _ = r.auditClient.LogEvent(ctx, &pbAudit.LogEventRequest{
 			EntityType: "winner",
 			EntityId:   req.WinnerId,
 			Action:     "PAYOUT_DISPATCHED",
 			Gateway:    "safehaven",
-			Payload:    fmt.Sprintf(`{"amount_cents":%d,"reference":"%s"}`, req.Amount, tf.Reference),
+			Payload:    fmt.Sprintf(`{"amount_cents":%d,"session_id":"%s"}`, req.Amount, tf.SessionID),
 		})
 
 		return &pb.RoutePaymentResponse{
 			Success:          true,
 			GatewayUsed:      "safehaven",
-			GatewayReference: tf.Reference,
+			GatewayReference: tf.SessionID,
 			Status:           "PROCESSING",
 		}, nil
 

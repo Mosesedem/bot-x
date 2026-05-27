@@ -16,6 +16,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/mosesedem/bot-x/shared/grpcdial"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -58,6 +59,10 @@ func Run() {
 	asynqClient := asynq.NewClient(redisOpt)
 	defer asynqClient.Close()
 
+	// Create Redis client for idempotency and caching
+	redisClient := newRedisClient(cfg.RedisURL)
+	defer redisClient.Close()
+
 	giveawayConn := dialService(cfg.GRPCGiveawayAddr, "Giveaway", logger)
 	defer giveawayConn.Close()
 
@@ -79,7 +84,17 @@ func Run() {
 	entryClient := pbEntry.NewEntryServiceClient(entryConn)
 	auditClient := pbAudit.NewAuditServiceClient(auditConn)
 
-	eventWorker := worker.NewEventWorker(pool, giveawayClient, paymentClient, notificationClient, entryClient, auditClient, logger, cfg)
+	xGatewayClient := xapi.New(xapi.Config{
+		BaseURL:        "https://api.twitter.com",
+		BearerToken:    cfg.XBearerToken,
+		ConsumerKey:    cfg.XConsumerKey,
+		ConsumerSecret: cfg.XConsumerSecret,
+		AccessToken:    cfg.XAccessToken,
+		AccessSecret:   cfg.XAccessSecret,
+	})
+	xGatewayHandler := handler.NewXGatewayGRPCHandler(xGatewayClient, logger)
+
+	eventWorker := worker.NewEventWorker(pool, redisClient, giveawayClient, paymentClient, notificationClient, entryClient, auditClient, xGatewayClient, logger, cfg)
 	asynqServer := asynq.NewServer(redisOpt, asynq.Config{
 		Concurrency: 10,
 		Queues:      map[string]int{"default": 10},
@@ -93,16 +108,6 @@ func Run() {
 			logger.Fatal("failed to run Asynq server", zap.Error(err))
 		}
 	}()
-
-	xGatewayClient := xapi.New(xapi.Config{
-		BaseURL:        "https://api.twitter.com",
-		BearerToken:    cfg.XBearerToken,
-		ConsumerKey:    cfg.XConsumerKey,
-		ConsumerSecret: cfg.XConsumerSecret,
-		AccessToken:    cfg.XAccessToken,
-		AccessSecret:   cfg.XAccessSecret,
-	})
-	xGatewayHandler := handler.NewXGatewayGRPCHandler(xGatewayClient, logger)
 
 	parts := strings.Split(cfg.GRPCXGatewayAddr, ":")
 	grpcPort := ":" + parts[len(parts)-1]
@@ -218,4 +223,32 @@ func redisClientOpt(redisURL string) (asynq.RedisClientOpt, error) {
 	}
 
 	return opt, nil
+}
+
+func newRedisClient(redisURL string) *redis.Client {
+	parsedURL, err := url.Parse(redisURL)
+	if err != nil {
+		return nil
+	}
+
+	opt := &redis.Options{Addr: parsedURL.Host}
+	if parsedURL.User != nil {
+		opt.Username = parsedURL.User.Username()
+		if password, ok := parsedURL.User.Password(); ok {
+			opt.Password = password
+		}
+	}
+
+	if dbValue := strings.TrimPrefix(parsedURL.Path, "/"); dbValue != "" {
+		db, err := strconv.Atoi(dbValue)
+		if err == nil {
+			opt.DB = db
+		}
+	}
+
+	if parsedURL.Scheme == "rediss" {
+		opt.TLSConfig = &tls.Config{ServerName: parsedURL.Hostname()}
+	}
+
+	return redis.NewClient(opt)
 }

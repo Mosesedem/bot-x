@@ -2,40 +2,96 @@
 
 ## Current Status
 
-The project is in a stable, compilable state. The monorepo contains 10 microservices that communicate over gRPC, share generated protobuf code in `gen/go`, and rely on shared libraries under `shared`.
+**Alpha/Pre-Production** — Core architecture complete, critical integrations remain mocked.
 
-Recently completed changes improve local developer experience and production safety:
+The monorepo contains 10 microservices communicating over gRPC. The project compiles and runs locally via Docker Compose.
 
-- Centralized TLS-aware gRPC dial helper added in `shared/grpcdial/dial.go` and wired into service entrypoints to avoid using insecure credentials in production.
-- Local infrastructure in `docker-compose.yml` updated to use Postgres:15 and Redis:7 for Postgres-compatible code paths and Asynq/Redis-based background processing. ClickHouse and Vault remain in the compose stack.
-- Database migration files are present in `/migrations` (Postgres + ClickHouse migrations). These provide the base schema used by service queries.
-- Quick unit tests were added: giveaway state machine tests and an X webhook CRC handler test.
-- A basic GitHub Actions CI workflow was added to run `go test` and `golangci-lint` on push/PR.
+### Recently Completed (July 2025)
 
-- [Phase 1 applied] Security & compliance hardening: enforced production webhook signature verification, switched runtime secret reads to Vault where available, and upgraded OFAC screening to use fuzzy matching (Levenshtein) in the shared screener.
+#### Deployment Infrastructure ✅
+- **NEW:** `docker-compose.prod.yml` — Production-ready compose for Digital Ocean Droplet
+- **NEW:** `nginx/bot-x.conf` — Nginx SSL reverse proxy configuration
+- **NEW:** `scripts/deploy.sh` — Automated deployment script
+- **NEW:** `.env.production.example` — Production environment template
+- **NEW:** `docs/DEPLOY_DO_DROPLET.md` — Complete deployment guide
+- **UPDATED:** `Makefile` with `deploy-prod`, `prod-*` targets for DO management
+
+#### Previously Completed
+- TLS-aware gRPC dial helper (`shared/grpcdial/dial.go`)
+- Local dev with Postgres 15, Redis 7, ClickHouse in compose
+- Database migrations for PostgreSQL
+- Basic unit tests (giveaway state machine, X webhook CRC)
+- GitHub Actions CI (test + lint)
+- Phase 1: Security hardening (webhook verification, Vault integration, OFAC fuzzy matching)
+- Phase 2: Monetary storage migration (int64 cents throughout)
 
 ## What is Completed
 
-- [x] Defined all Protobuf schemas in `/proto`.
-- [x] Fixed compilation errors and stabilized the Go workspace (`go.work`).
-- [x] Multi-stage Dockerfiles exist for microservices.
-- [x] Workspace builds successfully (`go build ./...`).
-- [x] **Implemented Core Services** (same service list as before).
-- [x] Added `shared/grpcdial/dial.go` and updated service dialers to prefer TLS in production.
-- [x] Replaced CockroachDB/Dragonfly test infra with Postgres and Redis in `docker-compose.yml` for local development.
-- [x] Added SQL migrations in `/migrations` (Postgres + ClickHouse) used by services.
-- [x] Added unit tests for the giveaway state machine and a CRC test for the X webhook handler.
-- [x] Added a basic GitHub Actions workflow at `.github/workflows/ci.yml` that runs `go test` and `golangci-lint`.
+### Core Architecture ✅
+- [x] 10 microservices with multi-stage Dockerfiles
+- [x] Protobuf schemas in `/proto`, generated code in `gen/go`
+- [x] gRPC communication with TLS support (`shared/grpcdial/dial.go`)
+- [x] Go workspace stable (`go.work`)
+- [x] Database migrations (PostgreSQL + ClickHouse)
+- [x] Background job processing (Asynq/Redis)
 
-## Missing Steps / Next Actions
+### Security & Compliance ✅
+- [x] Webhook signature verification (production-enforced)
+- [x] HashiCorp Vault integration for secrets
+- [x] OFAC screening with Levenshtein fuzzy matching
+- [x] `.env.example` scrubbed of secrets
 
-- [ ] **Migrations automation**: Wire `/migrations` into local startup (Makefile or a compose init job) so Postgres is seeded automatically when spinning up `docker-compose`.
-- [ ] **Migrations automation**: Wire `/migrations` into local startup (Makefile or a compose init job) so Postgres is seeded automatically when spinning up `docker-compose`.
-- [Phase 2 started] Database schema updated for monetary storage: initial migration changed monetary column types to `BIGINT` for fresh installs and a conversion migration `000003_migrate_amounts_to_bigint.up.sql` was added to convert existing `NUMERIC(12,2)` values to integer lowest-denomination values (multiplies by 100).
+### Data Layer ✅
+- [x] Phase 2: All monetary fields as `int64` cents
+- [x] PostgreSQL schema with `BIGINT` for money
+- [x] Conversion migration for existing data
+- [x] ClickHouse for audit logging
 
-## Phase 2: Monetary storage migration (in-progress → mostly complete)
+### Testing & CI ✅
+- [x] Basic unit tests (giveaway state machine, webhook CRC)
+- [x] GitHub Actions CI (test + lint)
 
-Status: major code + proto changes applied, generated code regenerated, repo sweep completed.
+### Deployment Infrastructure ✅
+- [x] `docker-compose.prod.yml` for DO Droplet
+- [x] Nginx SSL configuration
+- [x] Automated deployment script (`scripts/deploy.sh`)
+- [x] Production environment template
+- [x] Complete deployment documentation
+
+## Missing Steps / Production Blockers
+
+### 🔴 Critical (Must Fix Before Launch)
+
+| # | Item | Location | Impact |
+|---|------|----------|--------|
+| 1 | **Twitter API Integration** | `xgateway/grpc_handler.go` | Bot cannot send DMs or reply to tweets |
+| 2 | **Reconciliation Worker** | `reconciliation/worker/reconcile.go` | Orphaned transactions possible |
+| 3 | **End-to-end Tests** | `test/` | No integration test coverage for webhook→payout flow |
+
+### 🟡 Important (Fix Before Scale)
+
+| # | Item | Location | Impact |
+|---|------|----------|--------|
+| 4 | **Crypto Gateway** | `payment-router/crypto/` | Cannot process crypto payouts |
+| 5 | **International KYC** | `kyc/` | Non-NG users bypass compliance |
+| 6 | **CI Docker Builds** | `.github/workflows/ci.yml` | No automated image builds |
+| 7 | **Webhook Idempotency** | `xgateway/webhook.go` | Duplicate webhook processing risk |
+
+### 🟢 Nice to Have
+
+- [ ] Circuit breakers for gRPC calls
+- [ ] Structured logging with correlation IDs
+- [ ] Prometheus metrics endpoint
+- [ ] PagerDuty/Slack alerting integration
+
+## Phase 2: Monetary Storage Migration ✅ COMPLETE
+
+Status: **COMPLETE** — All monetary fields use `int64` cents at DB and RPC boundaries.
+
+- Database migrations use `BIGINT` for fresh installs
+- Conversion migration exists for existing data
+- Protobufs converted to `int64` amounts
+- Repository-wide sweep completed
 
 Summary of work completed in Phase 2:
 
@@ -65,16 +121,60 @@ Notes & risks:
 - External gateway contracts must be reviewed: some gateways accept amounts in cents (preferred), others expect floats. Adapters have been added in `shared/gateways/*` but please verify with each provider.
 - We updated `shared/nlp/commandparser` to return integer cents to reduce downstream conversion errors.
 
-Next actions remaining for Phase 2:
+## Deployment Strategy: Digital Ocean Droplet ✅
 
-- Automate migrations as part of startup/deploy manifests (Makefile / init container).
-- Run integration tests against a staging environment seeded with converted data.
-- Update deployment docs and CI workflows to include `make proto` and migration checks.
-- [ ] **End-to-end integration tests**: Create integration tests that exercise webhooks → `xgateway` → DB → Asynq worker flows.
-- [ ] **Webhook registration automation & docs**: Add scripts/docs to register the X/Twitter webhook (CRC flow) and instructions for producing `X_CONSUMER_SECRET` and `X_BEARER_TOKEN` values.
-- [ ] **Expand CI/CD**: Extend the CI workflow to build Docker images, run database migrations in CI test jobs, and add releases/builds for staging/prod deploys.
-- [ ] **Production validation**: Ensure `APP_ENV`, `GRPC_TLS_CA_FILE`, and `GRPC_TLS_SERVER_NAME` are set and validated in staging/prod; add tests for TLS handshakes if possible.
-- [ ] **More unit tests**: Flesh out state machine tests, worker tests, and gateway integration tests beyond the initial test coverage added.
+**Selected Approach:** Docker Compose on Ubuntu Droplet (not App Platform)
+
+**Rationale:**
+- All-in-one deployment simplifies initial launch
+- Containerized Postgres/Redis/ClickHouse on single droplet
+- Easy to migrate to managed services later
+- Nginx reverse proxy with SSL termination
+- Single-command deployment via `make deploy-prod`
+
+**Files Created:**
+- `docker-compose.prod.yml` — 10 services + 3 data stores + migrations
+- `nginx/bot-x.conf` — SSL reverse proxy with rate limiting
+- `scripts/deploy.sh` — Automated deployment with validation
+- `docs/DEPLOY_DO_DROPLET.md` — Complete step-by-step guide
+
+**Next Actions:**
+- [ ] Test deployment on staging droplet
+- [ ] Set up production droplet
+- [ ] Configure SSL certificates
+- [ ] Register Twitter webhook
+- [ ] Run smoke tests
+
+---
+
+## Upcoming Phase 3: Production Hardening
+
+**After Twitter API integration is complete:**
+
+1. End-to-end integration tests (testcontainers-go)
+2. CI/CD pipeline for Docker builds
+3. Monitoring (Prometheus/Grafana)
+4. Alerting (PagerDuty/Slack)
+5. Load testing
+6. Documentation for operators
+
+---
+
+## Recent Actions Log
+
+**July 2025:**
+- ✅ Created production deployment infrastructure for DO Droplet
+- ✅ Updated critic.md with accurate project state
+- ✅ Created comprehensive deployment guide
+
+**June 2025:**
+- ✅ Completed Phase 2 (monetary storage migration)
+- ✅ Security hardening (Phase 1)
+
+**May 2025:**
+- ✅ Fixed compilation errors, stabilized workspace
+- ✅ Added basic unit tests
+- ✅ Created CI workflow
 
 Recent actions:
 

@@ -1,83 +1,112 @@
+# ============================================================
+#  bot-x — Production Docker Compose for Ubuntu Instance
+#  Stack: Go microservices + Redis + ClickHouse + (External CockroachDB)
+# ============================================================
+
 services:
-  # ── Infrastructure ──
+  # ── Infrastructure Services ──────────────────────────────
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   clickhouse:
-    image: clickhouse/clickhouse-server:24.3
-    ports:
-      - "9000:9000"
-      - "8123:8123"
-    environment:
-      - CLICKHOUSE_DB=instantf_audit
-      - CLICKHOUSE_USER=default
-      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    image: clickhouse/clickhouse-server:24.3-alpine
+    restart: unless-stopped
+    env_file:
+      - .env
     volumes:
       - clickhouse_data:/var/lib/clickhouse
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:8123:8123"
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # ── Database Migrations (runs once on deploy) ─────────────
+
   migrate:
     image: migrate/migrate:v4.17.1
     env_file:
       - .env
-    environment:
-      DATABASE_URL: "${DATABASE_URL}"
     volumes:
       - ./migrations:/migrations:ro
     command: ["-path", "/migrations", "-database", "${DATABASE_URL}", "up"]
     restart: "no"
 
-  # ── Microservices ──
+  # ── Microservices ────────────────────────────────────────
+
   xgateway:
     build:
       context: .
       dockerfile: services/xgateway/Dockerfile
-    ports:
-      - "8081:8080"
-      - "50051:50051"
+    restart: unless-stopped
     env_file:
       - .env
+    ports:
+      - "8081:8080"    # HTTP API
+      - "50051:50051"  # gRPC
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
   giveaway:
     build:
       context: .
       dockerfile: services/giveaway/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "8082:8080"
       - "50052:50052"
-    env_file:
-      - .env
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
   entry:
     build:
       context: .
       dockerfile: services/entry/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "8083:8080"
       - "50053:50053"
-    env_file:
-      - .env
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
   payment-router:
     build:
       context: .
       dockerfile: services/payment-router/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "8084:8080"
       - "50054:50054"
-    env_file:
-      - .env
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -86,37 +115,34 @@ services:
     build:
       context: .
       dockerfile: services/kyc/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "8085:8080"
       - "50055:50055"
-    env_file:
-      - .env
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
 
   compliance:
     build:
       context: .
       dockerfile: services/compliance/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "8086:8080"
       - "50056:50056"
-    env_file:
-      - .env
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
 
   audit:
     build:
       context: .
       dockerfile: services/audit/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "8087:8080"
       - "50057:50057"
-    env_file:
-      - .env
     depends_on:
       clickhouse:
         condition: service_healthy
@@ -125,38 +151,45 @@ services:
     build:
       context: .
       dockerfile: services/notification/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "8088:8080"
       - "50058:50058"
-    env_file:
-      - .env
     depends_on:
       - xgateway
+      - redis
 
   reconciliation:
     build:
       context: .
       dockerfile: services/reconciliation/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "8089:8080"
       - "50059:50059"
-    env_file:
-      - .env
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
   admin:
     build:
       context: .
       dockerfile: services/admin/Dockerfile
-    ports:
-      - "8090:8080"
+    restart: unless-stopped
     env_file:
       - .env
+    ports:
+      - "127.0.0.1:8090:8080"  # Only accessible from localhost (use SSH tunnel or VPN)
     depends_on:
       migrate:
         condition: service_completed_successfully
 
 volumes:
+  redis_data:
   clickhouse_data:

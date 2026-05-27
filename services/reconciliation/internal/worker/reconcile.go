@@ -153,7 +153,7 @@ func (w *ReconciliationWorker) ReconcileActive(ctx context.Context) {
 					w.logger.Info("reconciled winner status to SUCCESS", zap.String("winner_id", id))
 				}
 			} else if gwStatus == "FAILED" || gwStatus == "REJECTED" {
-				_, err = w.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'FAILED' WHERE id = $2", id)
+				_, err = w.db.Exec(ctx, "UPDATE giveaway_winners SET payment_status = 'FAILED', payout_completed_at = $1 WHERE id = $2", time.Now(), id)
 				if err != nil {
 					w.logger.Error("failed to update winner status to FAILED", zap.String("winner_id", id), zap.Error(err))
 				} else {

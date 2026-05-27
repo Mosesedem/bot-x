@@ -80,9 +80,11 @@ type XUser struct {
 	Verified        bool   `json:"verified"`
 	ProfileImageURL string `json:"profile_image_url"`
 	CreatedAt       string `json:"created_at"`
-	FollowersCount  int32  `json:"followers_count"`
-	FollowingCount  int32  `json:"following_count"`
-	TweetCount      int32  `json:"tweet_count"`
+	PublicMetrics   struct {
+		FollowersCount int32 `json:"followers_count"`
+		FollowingCount int32 `json:"following_count"`
+		TweetCount     int32 `json:"tweet_count"`
+	} `json:"public_metrics"`
 }
 
 type UserProfile struct {
@@ -255,6 +257,24 @@ func (c *Client) doJSON(ctx context.Context, method, path string, query url.Valu
 	return statusCode, respBody, nil
 }
 
+func (c *Client) doJSONWithAuth(ctx context.Context, method, path string, query url.Values, body any, authHeader string, out any) (int, []byte, error) {
+	statusCode, respBody, err := c.doRequest(ctx, method, path, query, body, authHeader)
+	if err != nil {
+		return statusCode, respBody, err
+	}
+	if statusCode < 200 || statusCode >= 300 {
+		return statusCode, respBody, fmt.Errorf("x api request to %s failed with status %d: %s", path, statusCode, string(respBody))
+	}
+	if out != nil {
+		if err := json.Unmarshal(respBody, out); err != nil {
+			return statusCode, respBody, err
+		}
+	}
+	return statusCode, respBody, nil
+}
+
+// SendDM sends a direct message via the v1.1 API using OAuth1 user context.
+// DMs require OAuth1 — Bearer token (app-only) is rejected by the API.
 func (c *Client) SendDM(ctx context.Context, userID, message string) (string, error) {
 	if err := c.ensureConfigured(false, true); err != nil {
 		return "", err
@@ -289,40 +309,38 @@ func (c *Client) SendDM(ctx context.Context, userID, message string) (string, er
 	return resp.Event.ID, nil
 }
 
-func (c *Client) doJSONWithAuth(ctx context.Context, method, path string, query url.Values, body any, authHeader string, out any) (int, []byte, error) {
-	statusCode, respBody, err := c.doRequest(ctx, method, path, query, body, authHeader)
-	if err != nil {
-		return statusCode, respBody, err
-	}
-	if statusCode < 200 || statusCode >= 300 {
-		return statusCode, respBody, fmt.Errorf("x api request to %s failed with status %d: %s", path, statusCode, string(respBody))
-	}
-	if out != nil {
-		if err := json.Unmarshal(respBody, out); err != nil {
-			return statusCode, respBody, err
-		}
-	}
-	return statusCode, respBody, nil
-}
-
+// ReplyToTweet posts a reply tweet using OAuth1 user context via the v2 API.
+//
+// IMPORTANT: POST /2/tweets requires OAuth 1.0a User Context (or OAuth 2.0 PKCE).
+// Bearer token (app-only) is READ-ONLY and is rejected with HTTP 403 for writes.
+// This was previously broken — fixed to use OAuth1 header signing.
 func (c *Client) ReplyToTweet(ctx context.Context, tweetID, text string) (string, error) {
-	if err := c.ensureConfigured(true, false); err != nil {
+	if err := c.ensureConfigured(false, true); err != nil {
 		return "", err
 	}
 	if strings.TrimSpace(tweetID) == "" || strings.TrimSpace(text) == "" {
 		return "", fmt.Errorf("tweet id and text are required")
 	}
 
-	var resp TweetResponse
-	_, _, err := c.doJSON(ctx, "POST", "/2/tweets", nil, map[string]any{
+	path := "/2/tweets"
+	fullURL := c.baseURL + path
+	authHeader, err := buildOAuth1Header("POST", fullURL, nil, c.consumerKey, c.consumerSecret, c.accessToken, c.accessSecret)
+	if err != nil {
+		return "", err
+	}
+
+	body := map[string]any{
 		"text":  text,
 		"reply": map[string]any{"in_reply_to_tweet_id": tweetID},
-	}, true, &resp)
+	}
+
+	var resp TweetResponse
+	_, _, err = c.doJSONWithAuth(ctx, "POST", path, nil, body, authHeader, &resp)
 	if err != nil {
 		return "", err
 	}
 	if resp.Data.ID == "" {
-		return "", fmt.Errorf("x api returned an empty reply id")
+		return "", fmt.Errorf("x api returned an empty reply tweet id")
 	}
 	return resp.Data.ID, nil
 }
@@ -471,6 +489,8 @@ func (c *Client) CheckFollows(ctx context.Context, followerID, followeeID string
 	}
 }
 
+// GetUserProfile fetches a user profile by Twitter ID.
+// Uses Bearer token for read-only GET — this is correct.
 func (c *Client) GetUserProfile(ctx context.Context, twitterID string) (*UserProfile, error) {
 	if err := c.ensureConfigured(true, false); err != nil {
 		return nil, err
@@ -480,6 +500,7 @@ func (c *Client) GetUserProfile(ctx context.Context, twitterID string) (*UserPro
 	}
 
 	query := url.Values{}
+	// public_metrics returns follower/following/tweet counts
 	query.Set("user.fields", "created_at,profile_image_url,public_metrics,verified,username")
 
 	var resp struct {
@@ -493,9 +514,9 @@ func (c *Client) GetUserProfile(ctx context.Context, twitterID string) (*UserPro
 	profile := &UserProfile{
 		TwitterID:       resp.Data.ID,
 		Handle:          resp.Data.Username,
-		FollowerCount:   resp.Data.FollowersCount,
-		FollowingCount:  resp.Data.FollowingCount,
-		TweetCount:      resp.Data.TweetCount,
+		FollowerCount:   resp.Data.PublicMetrics.FollowersCount,
+		FollowingCount:  resp.Data.PublicMetrics.FollowingCount,
+		TweetCount:      resp.Data.PublicMetrics.TweetCount,
 		IsVerified:      resp.Data.Verified,
 		HasProfileImage: resp.Data.ProfileImageURL != "",
 	}

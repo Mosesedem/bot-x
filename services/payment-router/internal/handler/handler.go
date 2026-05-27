@@ -99,6 +99,21 @@ func (h *WebhookHandler) HandleSafeHaven(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
+		// Trigger public LIVE tweet reply
+		var tweetID, currency string
+		var winnerCount, amountPerWinnerInt int
+		err = h.db.QueryRow(ctx, "SELECT source_tweet_id, winner_count, amount_per_winner, currency FROM giveaways WHERE id = $1", giveawayID).Scan(&tweetID, &winnerCount, &amountPerWinnerInt, &currency)
+		if err == nil && tweetID != "" {
+			_, _ = h.notificationClient.SendActivationReply(ctx, &pbNotification.ActivationReplyRequest{
+				GiveawayId:          giveawayID,
+				TweetId:             tweetID,
+				WinnerCount:         int32(winnerCount),
+				AmountPerWinner:     int64(amountPerWinnerInt),
+				Currency:            currency,
+				DeadlineDescription: "24 hours",
+			})
+		}
+
 	case "transfer.success":
 		// Outbound payout successful
 		ref := payload.Data.Reference

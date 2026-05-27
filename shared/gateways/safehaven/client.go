@@ -189,9 +189,10 @@ type NameEnquiryRequest struct {
 }
 
 type NameEnquiryResponse struct {
-	AccountName   string `json:"accountName"`
-	AccountNumber string `json:"accountNumber"`
-	BankCode      string `json:"bankCode"`
+	AccountName          string `json:"accountName"`
+	AccountNumber        string `json:"accountNumber"`
+	BankCode             string `json:"bankCode"`
+	NameEnquiryReference string `json:"nameEnquiryReference"`
 }
 
 func (c *Client) NameEnquiry(ctx context.Context, req NameEnquiryRequest) (*NameEnquiryResponse, error) {

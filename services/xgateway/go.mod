@@ -1,6 +1,6 @@
 module github.com/mosesedem/bot-x/services/xgateway
 
-go 1.24
+go 1.24.0
 
 require (
 	github.com/go-chi/chi/v5 v5.3.0
@@ -8,6 +8,7 @@ require (
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/mosesedem/bot-x/gen/go v0.0.0-00010101000000-000000000000
 	github.com/mosesedem/bot-x/shared v0.0.0
+	github.com/redis/go-redis/v9 v9.14.1
 	go.uber.org/zap v1.21.0
 	google.golang.org/grpc v1.64.0
 )
@@ -31,7 +32,6 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
-	github.com/redis/go-redis/v9 v9.14.1 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
