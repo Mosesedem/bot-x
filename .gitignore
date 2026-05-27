@@ -3,7 +3,7 @@ bin/
 *.test
 coverage.out
 vendor/
-gen/go/
+
 *.pem
 *.key
 *.p8
