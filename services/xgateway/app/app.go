@@ -30,6 +30,7 @@ import (
 	"github.com/mosesedem/bot-x/services/xgateway/internal/worker"
 	"github.com/mosesedem/bot-x/shared/config"
 	"github.com/mosesedem/bot-x/shared/database"
+	"github.com/mosesedem/bot-x/shared/gateways/xapi"
 )
 
 func Run() {
@@ -93,7 +94,15 @@ func Run() {
 		}
 	}()
 
-	xGatewayHandler := handler.NewXGatewayGRPCHandler(pool, cfg, logger)
+	xGatewayClient := xapi.New(xapi.Config{
+		BaseURL:        "https://api.twitter.com",
+		BearerToken:    cfg.XBearerToken,
+		ConsumerKey:    cfg.XConsumerKey,
+		ConsumerSecret: cfg.XConsumerSecret,
+		AccessToken:    cfg.XAccessToken,
+		AccessSecret:   cfg.XAccessSecret,
+	})
+	xGatewayHandler := handler.NewXGatewayGRPCHandler(xGatewayClient, logger)
 
 	parts := strings.Split(cfg.GRPCXGatewayAddr, ":")
 	grpcPort := ":" + parts[len(parts)-1]

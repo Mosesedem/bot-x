@@ -1,6 +1,6 @@
 module github.com/mosesedem/bot-x/services/audit
 
-go 1.24.1
+go 1.24
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.46.0

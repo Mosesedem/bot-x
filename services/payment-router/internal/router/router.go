@@ -49,7 +49,7 @@ func NewPaymentRouter(
 
 func (r *PaymentRouter) isGatewayEnabled(ctx context.Context, gateway string) (bool, error) {
 	var enabled bool
-	err := r.db.QueryRow(ctx, "SELECT enabled FROM payment_gateway_config WHERE gateway_name = $1", gateway).Scan(&enabled)
+	err := r.db.QueryRow(ctx, "SELECT enabled FROM payment_gateway_config WHERE gateway = $1", gateway).Scan(&enabled)
 	if err != nil {
 		// If row doesn't exist or table isn't fully migrated yet, assume disabled for safety.
 		return false, nil
