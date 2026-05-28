@@ -30,7 +30,7 @@ func NewXWebhookHandler(asynqClient *asynq.Client, cfg *config.Config, logger *z
 }
 
 func (h *XWebhookHandler) RegisterRoutes(r chi.Router) {
-	r.Get("/webhooks/x/crc", h.HandleCRC)
+	r.Get("/webhooks/x/events", h.HandleCRC)
 	r.Post("/webhooks/x/events", h.HandleEvents)
 }
 
