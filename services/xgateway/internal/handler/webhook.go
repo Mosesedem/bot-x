@@ -38,8 +38,11 @@ func (h *XWebhookHandler) RegisterRoutes(r chi.Router) {
 }
 
 func (h *XWebhookHandler) HandleCRC(w http.ResponseWriter, r *http.Request) {
+	h.logger.Info("received X webhook CRC request", zap.String("path", r.URL.Path), zap.String("remote_addr", r.RemoteAddr))
+
 	crcToken := r.URL.Query().Get("crc_token")
 	if crcToken == "" {
+		h.logger.Warn("missing crc_token on X webhook CRC request", zap.String("path", r.URL.Path), zap.String("remote_addr", r.RemoteAddr))
 		http.Error(w, "missing crc_token", http.StatusBadRequest)
 		return
 	}
@@ -54,6 +57,8 @@ func (h *XWebhookHandler) HandleCRC(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *XWebhookHandler) HandleEvents(w http.ResponseWriter, r *http.Request) {
+	h.logger.Info("received X webhook event request", zap.String("path", r.URL.Path), zap.String("remote_addr", r.RemoteAddr), zap.String("user_agent", r.UserAgent()))
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		h.logger.Error("failed to read X webhook body", zap.Error(err))
