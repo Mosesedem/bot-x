@@ -30,8 +30,11 @@ func NewXWebhookHandler(asynqClient *asynq.Client, cfg *config.Config, logger *z
 }
 
 func (h *XWebhookHandler) RegisterRoutes(r chi.Router) {
+	// Support both paths to avoid routing/proxying mismatches between Nginx and the backend
 	r.Get("/webhooks/x/events", h.HandleCRC)
 	r.Post("/webhooks/x/events", h.HandleEvents)
+	r.Get("/webhook/twitter", h.HandleCRC)
+	r.Post("/webhook/twitter", h.HandleEvents)
 }
 
 func (h *XWebhookHandler) HandleCRC(w http.ResponseWriter, r *http.Request) {
